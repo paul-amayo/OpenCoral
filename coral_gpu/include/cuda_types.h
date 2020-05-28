@@ -5,7 +5,7 @@
 #include "/usr/local/cuda/include/cuda_runtime_api.h"
 #include "cuda_memory.h"
 
-#include <cstdint.h>
+#include <stdint.h>
 #include <opencv2/opencv.hpp>
 
 //------------------------------------------------------------------------------

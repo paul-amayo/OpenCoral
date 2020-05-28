@@ -21,6 +21,8 @@ should be model agnostic, so feel free to write an appropriate model for your pu
 - OpenCV 3.2
 - Eigen 3.2
 - Cuda
+- OpenMP
+- GLogs
 
 ## Installation
 **NOTE:** These instructions assume you are running Ubuntu 16.04 or higher.

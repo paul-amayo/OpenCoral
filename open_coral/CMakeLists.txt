@@ -6,8 +6,6 @@ include_directories(${OpenCV_INCLUDE_DIRS})
 find_package(Eigen3 REQUIRED)
 include_directories(${Eigen_INCLUDE_DIRS})
 
-find_package(Open3D REQUIRED)
-include_directories(${Open3D_INCLUDE_DIRS})
 
 find_package(OpenMP REQUIRED)
 
@@ -29,7 +27,7 @@ set(CORAL_UTIL_SRCS
 
 
 add_library(open_coral ${CORAL_UTIL_SRCS})
-target_link_libraries(open_coral ${OpenCV_LIBS} Eigen3::Eigen ${Open3D_LIBRARIES}
+target_link_libraries(open_coral ${OpenCV_LIBS} Eigen3::Eigen
         OpenMP::OpenMP_CXX gflags glog::glog)
 
 target_include_directories(open_coral

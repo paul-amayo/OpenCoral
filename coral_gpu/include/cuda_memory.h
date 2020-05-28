@@ -5,7 +5,7 @@
 #include "/usr/local/cuda/include/cuda_runtime_api.h"
 
 #include <glog/logging.h>
-#include <cstdint.h>
+#include <stdint.h>
 
 #define DEVICE_ONLY_CALL __device__
 #define HOST_DEVICE_CALL __host__ __device__

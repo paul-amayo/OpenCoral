@@ -6,8 +6,6 @@ find_package(Eigen3 REQUIRED)
 include_directories(${Eigen_INCLUDE_DIRS})
 find_package(OpenMP REQUIRED)
 
-find_package(Open3D REQUIRED)
-include_directories(${Open3D_INCLUDE_DIRS})
 
 #find_package(Boost REQUIRED 1.72.0)
 find_package(Boost 1.58 REQUIRED COMPONENTS
