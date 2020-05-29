@@ -10,6 +10,13 @@ CoralModelLine::CoralModelLine() {
   dist_thresh_ = 10;
 }
 //------------------------------------------------------------------------------
+ CoralModelLine::CoralModelLine(
+      Eigen::VectorXd line_params)
+    : line_params_(line_params) {
+  angle_thresh_ = 10;
+  dist_thresh_ = 10;
+}
+//------------------------------------------------------------------------------
 Eigen::MatrixXd
 CoralModelLine::EvaluateCost(const features::FeatureVectorSPtr &features) {
   const int num_features = features->size();
@@ -17,7 +24,7 @@ CoralModelLine::EvaluateCost(const features::FeatureVectorSPtr &features) {
 
   Eigen::MatrixXd point_values(num_features, num_dimensions);
   int feat_no = 0;
-  for (const auto& feature : *features) {
+  for (const auto &feature : *features) {
     Eigen::VectorXd point_curr = feature->GetFeatureValue();
     point_values(feat_no, 0) = point_curr(0);
     point_values(feat_no, 1) = point_curr(1);
@@ -41,9 +48,9 @@ void CoralModelLine::UpdateModel(const features::FeatureVectorSPtr &features) {
   Eigen::VectorXd y_values(num_features);
 
   int feat_no = 0;
-  for (const auto& feature : *features) {
+  for (const auto &feature : *features) {
     Eigen::MatrixXd point_curr = feature->GetFeatureValue();
-   x_values(feat_no) = point_curr(0);
+    x_values(feat_no) = point_curr(0);
     y_values(feat_no) = point_curr(1);
     feat_no++;
   }
@@ -55,7 +62,6 @@ Eigen::VectorXd
 CoralModelLine::CalculateLeastSquaresModel(Eigen::VectorXd x_values,
                                            Eigen::VectorXd y_values) {
   const int num_points = x_values.rows();
-
 
   float sum_x = x_values.sum() / num_points;
   float sum_y = y_values.sum() / num_points;
@@ -79,7 +85,6 @@ CoralModelLine::CalculateLeastSquaresModel(Eigen::VectorXd x_values,
   Eigen::Vector3d line_params;
   line_params(0) = V(0, 0);
   line_params(1) = V(1, 0);
-
 
   float normaliser =
       sqrt(line_params(0) * line_params(0) + line_params(1) * line_params(1));

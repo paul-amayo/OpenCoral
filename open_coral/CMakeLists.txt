@@ -1,5 +1,5 @@
 project(open_coral)
-
+enable_testing()
 
 find_package(OpenCV REQUIRED)
 include_directories(${OpenCV_INCLUDE_DIRS})
@@ -33,3 +33,16 @@ target_link_libraries(open_coral ${OpenCV_LIBS} Eigen3::Eigen
 target_include_directories(open_coral
         INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}
         )
+
+# Cmake logic for creating the boost tests
+# creates the executable
+add_executable(test_executable tests/coral_line_tests.cpp)
+# indicates the include paths
+target_include_directories(test_executable PRIVATE ${Boost_INCLUDE_DIRS})
+# indicates the shared library variant
+target_compile_definitions(test_executable PRIVATE "BOOST_TEST_DYN_LINK=1")
+# indicates the link paths
+target_link_libraries(test_executable open_coral ${Boost_UNIT_TEST_FRAMEWORK_LIBRARY})
+
+# declares a test with our executable
+add_test(NAME test1 COMMAND test_executable)

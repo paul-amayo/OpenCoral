@@ -12,6 +12,8 @@ class CoralModelLine : public CoralModelBase {
 public:
   CoralModelLine();
 
+  CoralModelLine(Eigen::VectorXd line_params);
+
   virtual ~CoralModelLine() = default;
 
 public:
