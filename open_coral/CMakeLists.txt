@@ -46,3 +46,14 @@ target_link_libraries(test_executable open_coral ${Boost_UNIT_TEST_FRAMEWORK_LIB
 
 # declares a test with our executable
 add_test(NAME test1 COMMAND test_executable)
+# creates the executable
+add_executable(coral_test tests/coral_tests.cpp)
+# indicates the include paths
+target_include_directories(coral_test PRIVATE ${Boost_INCLUDE_DIRS})
+# indicates the shared library variant
+target_compile_definitions(coral_test PRIVATE "BOOST_TEST_DYN_LINK=1")
+# indicates the link paths
+target_link_libraries(coral_test open_coral ${Boost_UNIT_TEST_FRAMEWORK_LIBRARY})
+
+# declares a test with our executable
+add_test(NAME coral_library_test COMMAND coral_test)

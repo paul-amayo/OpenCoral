@@ -3,10 +3,10 @@
 
 #include "models/coral_model.h"
 #include "nanoflann.hpp"
-#include <glog/logging.h>
 #include <Eigen/Sparse>
 #include <Eigen/src/Core/Matrix.h>
 #include <Eigen/src/Core/util/Constants.h>
+#include <glog/logging.h>
 #include <iostream>
 
 namespace coral {
@@ -63,8 +63,9 @@ public:
   ~CoralOptimiser();
 
 public:
-  Eigen::MatrixXd EnergyMinimisation(const features::FeatureVectorSPtr &features,
-                          models::ModelVectorSPtr models);
+  Eigen::MatrixXd
+  EnergyMinimisation(const features::FeatureVectorSPtr &features,
+                     models::ModelVectorSPtr models);
 
   Eigen::MatrixXd EvaluateModelCost(const features::FeatureVectorSPtr &features,
                                     const models::ModelVectorSPtr &models);
@@ -75,6 +76,8 @@ public:
   void UpdateNumLabels(int num_labels) {
     coral_optimiser_params_.num_labels = num_labels;
   }
+
+  static Eigen::MatrixXd SimplexProjectionVector(Eigen::MatrixXd matrix);
 
 private:
   void InitialiseVariables();
@@ -87,7 +90,7 @@ private:
 
   Dual GetClampedDualNorm(Dual dual, double clamp_value);
 
-  void ClampVariable(Primal &primal, double clamp_value);
+  static void ClampVariable(Primal &primal, double clamp_value);
 
   void LabelsFromPrimal();
 
@@ -96,7 +99,9 @@ private:
 
   void SimplexProjection();
 
-  Eigen::MatrixXd SortMatrix(Primal primal_matrix);
+
+
+  static Eigen::MatrixXd SortMatrix(Primal primal_matrix);
 
 private:
   CoralOptimiserParams coral_optimiser_params_;
@@ -344,6 +349,60 @@ void CoralOptimiser<InputType>::SimplexProjection() {
   ClampVariable(updated_primal, 0);
   primal_ = updated_primal;
 }
+
+//------------------------------------------------------------------------------
+template <typename InputType>
+Eigen::MatrixXd
+CoralOptimiser<InputType>::SimplexProjectionVector(Eigen::MatrixXd matrix) {
+  Primal matrix_sorted = SortMatrix(matrix);
+
+  // create x zero
+  int final_column_no = matrix_sorted.cols() - 1;
+  Eigen::VectorXd x_zero = matrix_sorted.col(final_column_no) -
+                           Primal::Constant(matrix_sorted.rows(), 1, 1);
+
+  Primal matrix_new(matrix_sorted.rows(), matrix_sorted.cols() + x_zero.cols());
+  matrix_new << matrix_sorted, x_zero;
+  Primal matrix_new_sorted = SortMatrix(matrix_new);
+
+  // Create the f matrix
+
+  int num_rows = matrix_new_sorted.rows();
+  int num_cols = matrix_new_sorted.cols();
+
+  Primal f = Primal::Zero(num_rows, num_cols);
+
+  for (int i = 0; i < num_cols; ++i) {
+    Primal curr_delta = matrix_new_sorted.col(i);
+    Primal tau_vec = matrix_new_sorted - curr_delta.replicate(1, num_cols);
+    ClampVariable(tau_vec, 0);
+    f.col(i) = tau_vec.rowwise().sum();
+  }
+
+  // calculate the indices
+  Eigen::MatrixXi minimum_matrix = (f.array() >= 1).cast<int>();
+  Eigen::MatrixXi index(num_rows, 1);
+
+  for (int i = 0; i < num_rows; ++i) {
+    Eigen::MatrixXi::Index col_no;
+    minimum_matrix.row(i).minCoeff(&col_no);
+    index(i) = col_no - 1;
+  }
+  // Calculate the optimal value of v
+  Primal v(num_rows, 1);
+  for (int i = 0; i < num_rows; ++i) {
+    int curr_index = index(i);
+    v(i) = matrix_new_sorted(i, curr_index) +
+           (1 - f(i, curr_index)) *
+               (matrix_new_sorted(i, curr_index) -
+                matrix_new_sorted(i, curr_index + 1)) /
+               (f(i, curr_index) - f(i, curr_index + 1));
+  }
+  // Calculate the new primal variable
+  Primal updated_matrix = matrix - v.replicate(1, matrix.cols());
+  ClampVariable(updated_matrix, 0);
+  return updated_matrix;
+}
 //------------------------------------------------------------------------------
 template <typename InputType> void CoralOptimiser<InputType>::UpdatePrimal() {
   Primal intermediate_primal, prev_primal;
@@ -417,7 +476,7 @@ Eigen::MatrixXd CoralOptimiser<InputType>::EnergyMinimisation(
 
     model_costs_ = EvaluateModelCost(features, models);
   }
-  LOG(INFO)<<"Model assignment is "<<primal_.colwise().sum();
+  LOG(INFO) << "Model assignment is " << primal_.colwise().sum();
   return label_;
 }
 
