@@ -75,3 +75,15 @@ get_property(dirs DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY INCLUDE_DIRECTO
 foreach (dir ${dirs})
     message(STATUS "include dir = '${dir}'")
 endforeach ()
+
+# creates the executable
+add_executable(coral_gpu_test tests/coral_gpu_tests.cpp)
+# indicates the include paths
+target_include_directories(coral_gpu_test PRIVATE ${Boost_INCLUDE_DIRS})
+# indicates the shared library variant
+target_compile_definitions(coral_gpu_test PRIVATE "BOOST_TEST_DYN_LINK=1")
+# indicates the link paths
+target_link_libraries(coral_gpu_test coral_cuda ${Boost_UNIT_TEST_FRAMEWORK_LIBRARY})
+
+# declares a test with our executable
+add_test(NAME coral_gpu_lib_test COMMAND coral_gpu_test)
