@@ -19,8 +19,8 @@ should be model agnostic, so feel free to write an appropriate model for your pu
 - Ubuntu 16.04
 - Boost 1.58
 - OpenCV 3.2
-- Eigen 3.2
-- Cuda
+- Eigen 3.3.6
+- Cuda 10.2
 - OpenMP
 - GLogs
 
@@ -37,8 +37,7 @@ Please consult the
 [OpenCV docs](http://docs.opencv.org/3.0-beta/doc/tutorials/introduction/linux_install/linux_install.html) for
 instructions.
 
-3. Install Eigen 3.2
-```
+3. Install Eigen 3.3.6
 
 4. Install `OpenCoral`:
 ```bash
@@ -50,5 +49,5 @@ make install
 ```
 
 ## Usage
-See `apps` for example usage.
+See `example` for example usage.
 
