@@ -23,6 +23,9 @@ public:
   void FindNearestNeighbours(const coral::features::FeatureVectorSPtr features,
                              cv::Mat &neighbour_index,
                              cv::Mat &inverse_neighbour_index);
+
+void WrapNeighbourHood(const Eigen::SparseMatrix<double> neighbourhood, cv::Mat& nabla, cv::Mat& nabla_t);
+
   cv::Mat Eigen2Cv(Eigen::MatrixXf eigen_matrix);
 
   Eigen::MatrixXf Cv2Eigen(cv::Mat opencv_matrix);
@@ -134,6 +137,50 @@ void CoralCudaWrapper<ModelType>::FindNearestNeighbours(
   // Take the transpose to reduce storage size
   neighbour_index = neighbour_index.t();
   inverse_neighbour_index = inverse_neighbour_index.t();
+}
+//------------------------------------------------------------------------------
+template <typename ModelType>
+void  CoralCudaWrapper<ModelType>::WrapNeighbourHood(const Eigen::SparseMatrix<double> neighbourhood,
+cv::Mat& nabla, cv::Mat& nabla_t){
+nabla=cv::Mat(params_.num_features,params_.num_neighbours,cv::DataType<float>::type);
+
+std::vector<std::vector<float> > transpose_nabla_vector;
+for(int j=0;j<params_.num_features;++j){
+	std::vector<float> temp_vector;
+	transpose_nabla_vector.push_back(temp_vector);
+}
+
+uint max_neighbours=0;
+
+for(int k=0;k<neighbourhood.outerSize();++k){
+	for(Eigen::SparseMatrix<double>::InnerIterator it(neighbourhood,k);it;++it){
+		double val= it.value();
+		if(val==1){
+			int row_index=it.row();
+			int col_index=it.col();
+			int row_modulo =floor((float)row_index/params_.num_neighbours);
+			int col_modulo=row_index%params_.num_neighbours;
+			nabla.at<float>(row_modulo,col_modulo)=col_index;
+			transpose_nabla_vector[col_index].push_back(row_modulo);
+			if(max_neighbours< transpose_nabla_vector[col_index].size()){
+				max_neighbours=transpose_nabla_vector[col_index].size();
+			}
+		}
+   	}
+}
+
+params_.max_neighbours=max_neighbours;
+for(int j=0;j<params_.num_features;j++){
+	std::vector<float> temp_vector =transpose_nabla_vector[j];
+	while(temp_vector.size()<params_.max_neighbours){
+		temp_vector.push_back(-1);
+	}
+	cv::Mat1f row_1_nabla_t(cv::Mat1f(temp_vector).t());
+	nabla_t.push_back(row_1_nabla_t);
+
+}
+nabla=nabla.t();
+nabla_t=nabla_t.t();
 }
 //------------------------------------------------------------------------------
 template <typename ModelType>

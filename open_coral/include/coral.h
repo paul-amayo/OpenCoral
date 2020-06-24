@@ -79,10 +79,11 @@ public:
 
   static Eigen::MatrixXd SimplexProjectionVector(Eigen::MatrixXd matrix);
 
+    Gradient GetGradient(){return neighbour_index_;};
+void FindNearestNeighbours(const features::FeatureVectorSPtr &features);
+
 private:
   void InitialiseVariables();
-
-  void FindNearestNeighbours(const features::FeatureVectorSPtr &features);
 
   void UpdateSmoothnessDual();
 
@@ -98,8 +99,6 @@ private:
                     models::ModelVectorSPtr models);
 
   void SimplexProjection();
-
-
 
   static Eigen::MatrixXd SortMatrix(Primal primal_matrix);
 
@@ -198,8 +197,8 @@ void CoralOptimiser<InputType>::FindNearestNeighbours(
                                    nanoflann::SearchParams(10));
 
     for (int k = 1; k < nn; ++k) {
-      neighbour_index_.coeffRef(cont, i);
-      neighbour_index_.coeffRef(cont, ret_indexes[k]);
+      neighbour_index_.coeffRef(cont, i)=-1;
+      neighbour_index_.coeffRef(cont, ret_indexes[k])=1;
       cont++;
     }
   }
