@@ -20,6 +20,9 @@ public:
   void EnergyMinimisation(const coral::features::FeatureVectorSPtr features,
                           coral::models::ModelVectorSPtr models);
 
+  void EnergyMinimisation(const Eigen::MatrixXd feature_costs,
+                          const Eigen::SparseMatrix<double> neighbourhood_index);
+
   void FindNearestNeighbours(const coral::features::FeatureVectorSPtr features,
                              cv::Mat &neighbour_index,
                              cv::Mat &inverse_neighbour_index);
@@ -46,7 +49,7 @@ CoralCudaWrapper<ModelType>::CoralCudaWrapper(
 template <typename ModelType>
 void CoralCudaWrapper<ModelType>::WrapParams(
     const coral::optimiser::CoralOptimiserParams params) {
-  params_.num_labels = params.num_labels;
+params_.num_labels = params.num_labels;
   params_.num_features = params.num_features;
   params_.num_neighbours = params.num_neighbours;
   params_.num_iterations = params.num_iterations;
@@ -181,6 +184,38 @@ for(int j=0;j<params_.num_features;j++){
 }
 nabla=nabla.t();
 nabla_t=nabla_t.t();
+}
+//------------------------------------------------------------------------------
+template <typename ModelType>
+void CoralCudaWrapper<ModelType>::EnergyMinimisation(
+const Eigen::MatrixXd feature_costs,const Eigen::SparseMatrix<double> neighbourhood_index){
+
+//Update the params
+params_.num_features=feature_costs.rows();
+params_.num_labels=feature_costs.cols();
+this->UpdateNumFeatures(params_.num_features);
+this->UpdateNumLabels(params_.num_labels);
+
+//  Get neighbour_hood
+cv::Mat neighbour_index_cv,inverse_neighbour_index;
+WrapNeighbourHood(neighbourhood_index,neighbour_index_cv,inverse_neighbour_index);
+cv::Mat model_costs_cv=Eigen2Cv(feature_costs.transpose().cast<float>());
+
+//Initialise CUDA Optimiser
+cuda::optimiser::CudaOptimiser cuda_optimiser(model_costs_cv, neighbour_index_cv,
+ inverse_neighbour_index,params_);
+
+
+cuda::matrix::CudaMatrix<float> primal=cuda_optimiser.Optimise();
+
+Eigen::MatrixXf primal_eig=Cv2Eigen(primal.GetMatrix().t());
+
+LOG(INFO)<<"Primal eig is "<<primal_eig;
+this->SetPrimal(primal_eig.cast<double>());
+this->LabelsFromPrimal();
+
+
+LOG(INFO)<<"Primal is "<<this->GetLabel();
 }
 //------------------------------------------------------------------------------
 template <typename ModelType>

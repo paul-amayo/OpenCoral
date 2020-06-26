@@ -72,9 +72,11 @@ public:
 
   void UpdateNumFeatures(int num_features) {
     coral_optimiser_params_.num_features = num_features;
+    InitialiseVariables();
   }
   void UpdateNumLabels(int num_labels) {
     coral_optimiser_params_.num_labels = num_labels;
+	InitialiseVariables();
   }
 
   static Eigen::MatrixXd SimplexProjectionVector(Eigen::MatrixXd matrix);
@@ -82,6 +84,15 @@ public:
     Gradient GetGradient(){return neighbour_index_;};
 void FindNearestNeighbours(const features::FeatureVectorSPtr &features);
 
+void LabelsFromPrimal();
+
+Primal GetPrimal(){
+return primal_;};
+Label GetLabel(){
+return label_;};
+
+void SetPrimal(Primal primal){
+primal_=primal;};
 private:
   void InitialiseVariables();
 
@@ -92,8 +103,6 @@ private:
   Dual GetClampedDualNorm(Dual dual, double clamp_value);
 
   static void ClampVariable(Primal &primal, double clamp_value);
-
-  void LabelsFromPrimal();
 
   void UpdateModels(features::FeatureVectorSPtr features,
                     models::ModelVectorSPtr models);
@@ -419,7 +428,7 @@ template <typename InputType> void CoralOptimiser<InputType>::UpdatePrimal() {
 //------------------------------------------------------------------------------
 template <typename InputType>
 void CoralOptimiser<InputType>::LabelsFromPrimal() {
-  for (int i = 0; i < coral_optimiser_params_.num_features; ++i) {
+for (int i = 0; i < coral_optimiser_params_.num_features; ++i) {
     Eigen::MatrixXi::Index index = 0;
     primal_.row(i).maxCoeff(&index);
     label_(i, 0) = index;
