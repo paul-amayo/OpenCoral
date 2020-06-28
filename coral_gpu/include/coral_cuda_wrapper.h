@@ -17,10 +17,10 @@ public:
   CoralCudaWrapper(const coral::optimiser::CoralOptimiserParams params);
   ~CoralCudaWrapper() = default;
 
-  void EnergyMinimisation(const coral::features::FeatureVectorSPtr features,
+  Eigen::MatrixXd EnergyMinimisation(const coral::features::FeatureVectorSPtr features,
                           coral::models::ModelVectorSPtr models);
 
-  void EnergyMinimisation(const Eigen::MatrixXd feature_costs,
+  Eigen::MatrixXd EnergyMinimisation(const Eigen::MatrixXd feature_costs,
                           const Eigen::SparseMatrix<double> neighbourhood_index);
 
   void FindNearestNeighbours(const coral::features::FeatureVectorSPtr features,
@@ -32,6 +32,7 @@ void WrapNeighbourHood(const Eigen::SparseMatrix<double> neighbourhood, cv::Mat&
   cv::Mat Eigen2Cv(Eigen::MatrixXf eigen_matrix);
 
   Eigen::MatrixXf Cv2Eigen(cv::Mat opencv_matrix);
+
 
 private:
   void WrapParams(const coral::optimiser::CoralOptimiserParams params);
@@ -187,7 +188,7 @@ nabla_t=nabla_t.t();
 }
 //------------------------------------------------------------------------------
 template <typename ModelType>
-void CoralCudaWrapper<ModelType>::EnergyMinimisation(
+Eigen::MatrixXd CoralCudaWrapper<ModelType>::EnergyMinimisation(
 const Eigen::MatrixXd feature_costs,const Eigen::SparseMatrix<double> neighbourhood_index){
 
 //Update the params
@@ -205,21 +206,20 @@ cv::Mat model_costs_cv=Eigen2Cv(feature_costs.transpose().cast<float>());
 cuda::optimiser::CudaOptimiser cuda_optimiser(model_costs_cv, neighbour_index_cv,
  inverse_neighbour_index,params_);
 
-
+LOG(INFO)<<"Begin optimisation";
 cuda::matrix::CudaMatrix<float> primal=cuda_optimiser.Optimise();
 
 Eigen::MatrixXf primal_eig=Cv2Eigen(primal.GetMatrix().t());
-
-LOG(INFO)<<"Primal eig is "<<primal_eig;
 this->SetPrimal(primal_eig.cast<double>());
 this->LabelsFromPrimal();
+LOG(INFO)<<"Finish optimisation";
+LOG(INFO)<<"Primal is \n"<<this->GetPrimal();
 
-
-LOG(INFO)<<"Primal is "<<this->GetLabel();
+return this->GetLabel();
 }
 //------------------------------------------------------------------------------
 template <typename ModelType>
-void CoralCudaWrapper<ModelType>::EnergyMinimisation(
+Eigen::MatrixXd CoralCudaWrapper<ModelType>::EnergyMinimisation(
     const coral::features::FeatureVectorSPtr features,
     coral::models::ModelVectorSPtr models) {
 
@@ -259,8 +259,13 @@ void CoralCudaWrapper<ModelType>::EnergyMinimisation(
 
     std::cout << " The optimisation time was " << optimisation_time
               << " miliseconds \n";
+Eigen::MatrixXf primal_eig=Cv2Eigen(primal.GetMatrix().t());
+this->SetPrimal(primal_eig.cast<double>());
+this->LabelsFromPrimal();
+
 
   }
+
 }
 //------------------------------------------------------------------------------
 template <typename ModelType>

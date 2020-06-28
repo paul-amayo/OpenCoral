@@ -19,8 +19,10 @@ params.max_neighbours=1;
 params.num_features=3;
 params.tau=0.125;
 params.alpha=0.125;
+params.nu=0.125;
 params.lambda=0;
-params.num_iterations=10;
+params.beta=1;
+params.num_iterations=1000;
 optimiser=boost::make_shared<cuda::coral_wrapper::CoralCudaWrapper<coral::models::CoralModelLine> >(params);
 }
 };
@@ -117,7 +119,7 @@ coral_optimiser.FindNearestNeighbours(point_features);
 Eigen::SparseMatrix<double> nabla=coral_optimiser.GetGradient();
 
 LOG(INFO)<<"Nabla is"<< nabla;
-Eigen::MatrixXd feature_costs=Eigen::MatrixXd::Zero(9,3);
+Eigen::MatrixXd feature_costs=Eigen::MatrixXd::Zero(9,4);
 
 feature_costs(0,0)=1;
 feature_costs(1,0)=1;
@@ -135,7 +137,7 @@ feature_costs(2,1)=2;
 feature_costs(3,1)=1;
 feature_costs(4,1)=1;
 feature_costs(5,1)=1;
-feature_costs(6,1)=3;
+feature_costs(6,1)=4;
 feature_costs(7,1)=3;
 feature_costs(8,1)=3;
 
@@ -148,6 +150,16 @@ feature_costs(5,2)=3;
 feature_costs(6,2)=3;
 feature_costs(7,2)=1;
 feature_costs(8,2)=1;
+
+feature_costs(0,3)=3;
+feature_costs(1,3)=3;
+feature_costs(2,3)=3;
+feature_costs(3,3)=3;
+feature_costs(4,3)=3;
+feature_costs(5,3)=3;
+feature_costs(6,3)=3.1;
+feature_costs(7,3)=0.9;
+feature_costs(8,3)=1.1;
 
 LOG(INFO)<<"feature costs is \n"<<feature_costs;
 

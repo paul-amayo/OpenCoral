@@ -6,6 +6,7 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include "../include/cuda_optimiser.h"
+#include <thrust/device_vector.h>
 
 namespace cuda {
 namespace optimiser {
@@ -125,6 +126,27 @@ update_compactness_dual(cuda::matrix::CudaMatrix<float> compactness_dual,
 }
 //------------------------------------------------------------------------------
 __global__ void
+update_compactness_simplex(cuda::matrix::CudaMatrix<float> compactness_dual,
+			   cuda::matrix::CudaMatrix<float> compactness_dual_sum,
+			   int num_features,int width,int num_labels){
+  int col = blockDim.x * blockIdx.x + threadIdx.x;
+  int row = blockDim.y * blockIdx.y + threadIdx.y;
+
+  int curr_feature = col + row * width;
+
+  if (curr_feature < num_features && col < width && row < width) {
+    for (int curr_label = 0; curr_label < num_labels; ++curr_label) {
+	float sum=compactness_dual_sum(curr_label,0);
+	if(sum>0){      
+	float update = compactness_dual(curr_label, curr_feature)/sum;
+	compactness_dual.StoreElement(update, curr_label, curr_feature);
+	}
+    }
+  }
+}
+	
+//------------------------------------------------------------------------------
+__global__ void
 update_smoothness_dual(cuda::matrix::CudaMatrix<float> smoothness_dual,
                        cuda::matrix::CudaMatrix<float> primal_relaxed,
                        cuda::matrix::CudaMatrix<float> nabla, int num_labels,
@@ -217,6 +239,16 @@ void CudaOptimiser::CompactnessDualOptimisation() {
       params_.num_features, params_.nu, params_.beta);
   ErrorCheckCuda(cudaPeekAtLastError());
   ErrorCheckCuda(cudaDeviceSynchronize());
+
+// Get the sum of the label_dual
+cv::Mat sum;
+cv::reduce(compactness_dual_.GetMatrix(),sum,1,cv::REDUCE_SUM,CV_32F);
+cuda::matrix::CudaMatrix<float> compactness_dual_sum(sum);
+
+update_compactness_simplex<<<num_blocks,num_threads>>>(compactness_dual_,compactness_dual_sum,
+						params_.num_features,square_sides,params_.num_labels);
+ErrorCheckCuda(cudaPeekAtLastError());
+ErrorCheckCuda(cudaDeviceSynchronize());
 }
 //------------------------------------------------------------------------------
 void CudaOptimiser::SmoothnessDualOptimisation() {
