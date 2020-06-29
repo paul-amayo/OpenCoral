@@ -17,10 +17,10 @@ public:
   CoralCudaWrapper(const coral::optimiser::CoralOptimiserParams params);
   ~CoralCudaWrapper() = default;
 
-  Eigen::MatrixXd EnergyMinimisation(const coral::features::FeatureVectorSPtr features,
+  coral::optimiser::EnergyMinimisationResult EnergyMinimisation(const coral::features::FeatureVectorSPtr features,
                           coral::models::ModelVectorSPtr models);
 
-  Eigen::MatrixXd EnergyMinimisation(const Eigen::MatrixXd feature_costs,
+  coral::optimiser::EnergyMinimisationResult EnergyMinimisation(const Eigen::MatrixXd feature_costs,
                           const Eigen::SparseMatrix<double> neighbourhood_index);
 
   void FindNearestNeighbours(const coral::features::FeatureVectorSPtr features,
@@ -188,7 +188,7 @@ nabla_t=nabla_t.t();
 }
 //------------------------------------------------------------------------------
 template <typename ModelType>
-Eigen::MatrixXd CoralCudaWrapper<ModelType>::EnergyMinimisation(
+coral::optimiser::EnergyMinimisationResult CoralCudaWrapper<ModelType>::EnergyMinimisation(
 const Eigen::MatrixXd feature_costs,const Eigen::SparseMatrix<double> neighbourhood_index){
 
 //Update the params
@@ -215,11 +215,15 @@ this->LabelsFromPrimal();
 LOG(INFO)<<"Finish optimisation";
 LOG(INFO)<<"Primal is \n"<<this->GetPrimal();
 
-return this->GetLabel();
+coral::optimiser::EnergyMinimisationResult result;
+
+result.SoftLabel=this->GetPrimal();
+result.DiscreteLabel=this->GetLabel();
+return result;
 }
 //------------------------------------------------------------------------------
 template <typename ModelType>
-Eigen::MatrixXd CoralCudaWrapper<ModelType>::EnergyMinimisation(
+coral::optimiser::EnergyMinimisationResult CoralCudaWrapper<ModelType>::EnergyMinimisation(
     const coral::features::FeatureVectorSPtr features,
     coral::models::ModelVectorSPtr models) {
 
@@ -265,6 +269,11 @@ this->LabelsFromPrimal();
 
 
   }
+coral::optimiser::EnergyMinimisationResult result;
+
+result.SoftLabel=this->GetPrimal();
+result.DiscreteLabel=this->GetLabel();
+return result;
 
 }
 //------------------------------------------------------------------------------

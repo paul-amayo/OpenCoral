@@ -80,17 +80,8 @@ int main(int argc, char* argv[])
   CoralOptimiser<CoralModelLine> optimiser(params);
   LOG(INFO) << "Number of  models is " << line_models->size();
   LOG(INFO) << "Number of features is " << line_features->size();
-  Eigen::MatrixXd label =
-      optimiser.EnergyMinimisation(line_features, line_models);
+  optimiser.EnergyMinimisation(line_features, line_models);
 
-  params.max_neighbours =1;
-
-//  cuda::coral_wrapper::CoralCudaWrapper<CoralModelLine> cuda_optimiser(params);
-//
-//  cuda_optimiser.FindNearestNeighbours(feature_vector_sptr, neighbour_index,
-//                                       neighbour_transpose);
-//
-//  cuda_optimiser.EnergyMinimisation(feature_vector_sptr, line_models);
 
   return 0;
 }

@@ -49,6 +49,11 @@ struct CoralOptimiserParams {
   int pyramid_levels;
 };
 
+struct EnergyMinimisationResult{
+Eigen::MatrixXd SoftLabel;
+Eigen::MatrixXd DiscreteLabel;
+};
+
 template <typename Model> class CoralOptimiser {
 
   typedef Eigen::MatrixXd Dual;
@@ -63,9 +68,12 @@ public:
   ~CoralOptimiser();
 
 public:
-  Eigen::MatrixXd
+  virtual EnergyMinimisationResult
   EnergyMinimisation(const features::FeatureVectorSPtr &features,
                      models::ModelVectorSPtr models);
+
+  virtual EnergyMinimisationResult
+  EnergyMinimisation(const Eigen::MatrixXd feature_costs, Gradient neighbour_index);
 
   Eigen::MatrixXd EvaluateModelCost(const features::FeatureVectorSPtr &features,
                                     const models::ModelVectorSPtr &models);
@@ -453,7 +461,12 @@ void CoralOptimiser<InputType>::UpdateModels(
 }
 //------------------------------------------------------------------------------
 template <typename InputType>
-Eigen::MatrixXd CoralOptimiser<InputType>::EnergyMinimisation(
+EnergyMinimisationResult CoralOptimiser<InputType>::EnergyMinimisation(
+	const Eigen::MatrixXd feature_costs, const Gradient neighbour_index){
+}
+//------------------------------------------------------------------------------
+template <typename InputType>
+EnergyMinimisationResult CoralOptimiser<InputType>::EnergyMinimisation(
     const features::FeatureVectorSPtr &features,
     models::ModelVectorSPtr models) {
   // Update the params
@@ -485,7 +498,10 @@ Eigen::MatrixXd CoralOptimiser<InputType>::EnergyMinimisation(
     model_costs_ = EvaluateModelCost(features, models);
   }
   LOG(INFO) << "Model assignment is " << primal_.colwise().sum();
-  return label_;
+  EnergyMinimisationResult result;
+result.SoftLabel=primal_;
+result.DiscreteLabel=label_;
+  return result;
 }
 
 } // namespace optimiser
