@@ -14,51 +14,35 @@ namespace optimiser {
 
 struct CoralOptimiserParams {
   int num_neighbours;
-
   double outlier_threshold;
-
   double lambda;
-
   double beta;
   double tau;
-
   double alpha;
-
   double nu;
-
   int num_features;
-
   int num_labels;
   int num_loops;
-
   int num_iterations;
-
   uint max_neighbours;
-
   int height_image;
   int width_image;
-
   bool use_label_dual;
-
   bool use_pyramid;
-
   bool update_models;
-
   double pyramid_scale;
-
   int pyramid_levels;
 };
 
-struct EnergyMinimisationResult{
-Eigen::MatrixXd SoftLabel;
-Eigen::MatrixXd DiscreteLabel;
+struct EnergyMinimisationResult {
+  Eigen::MatrixXd SoftLabel;
+  Eigen::MatrixXd DiscreteLabel;
 };
 
 template <typename Model> class CoralOptimiser {
 
   typedef Eigen::MatrixXd Dual;
   typedef Eigen::MatrixXd Primal;
-  typedef Eigen::MatrixXd RelaxedPrimal;
   typedef Eigen::SparseMatrix<double> Gradient;
   typedef Eigen::MatrixXd Label;
 
@@ -73,7 +57,8 @@ public:
                      models::ModelVectorSPtr models);
 
   virtual EnergyMinimisationResult
-  EnergyMinimisation(const Eigen::MatrixXd feature_costs, Gradient neighbour_index);
+  EnergyMinimisation(const Eigen::MatrixXd feature_costs,
+                     Gradient neighbour_index);
 
   Eigen::MatrixXd EvaluateModelCost(const features::FeatureVectorSPtr &features,
                                     const models::ModelVectorSPtr &models);
@@ -82,27 +67,34 @@ public:
     coral_optimiser_params_.num_features = num_features;
     InitialiseVariables();
   }
+
   void UpdateNumLabels(int num_labels) {
     coral_optimiser_params_.num_labels = num_labels;
-	InitialiseVariables();
+    InitialiseVariables();
   }
+
+  void UpdateLambda(float lambda) { coral_optimiser_params_.lambda = lambda; }
+
+  void UpdateBeta(float beta) { coral_optimiser_params_.beta = beta; }
 
   static Eigen::MatrixXd SimplexProjectionVector(Eigen::MatrixXd matrix);
 
-    Gradient GetGradient(){return neighbour_index_;};
-void FindNearestNeighbours(const features::FeatureVectorSPtr &features);
+  Gradient GetGradient() { return neighbour_index_; };
 
-void LabelsFromPrimal();
+  void FindNearestNeighbours(const features::FeatureVectorSPtr &features);
 
-Primal GetPrimal(){
-return primal_;};
-Label GetLabel(){
-return label_;};
+  void LabelsFromPrimal();
 
-void SetPrimal(Primal primal){
-primal_=primal;};
+  Primal GetPrimal() { return primal_; };
+
+  Label GetLabel() { return label_; };
+
+  void SetPrimal(Primal primal) { primal_ = primal; };
+
 private:
   void InitialiseVariables();
+
+  void UpdateCompactnessDual();
 
   void UpdateSmoothnessDual();
 
@@ -143,6 +135,7 @@ CoralOptimiser<InputType>::CoralOptimiser(
 //------------------------------------------------------------------------------
 template <typename InputType>
 CoralOptimiser<InputType>::~CoralOptimiser() = default;
+
 //------------------------------------------------------------------------------
 template <typename InputType>
 void CoralOptimiser<InputType>::InitialiseVariables() {
@@ -162,6 +155,7 @@ void CoralOptimiser<InputType>::InitialiseVariables() {
 
   label_ = Eigen::MatrixXd::Zero(coral_optimiser_params_.num_features, 1);
 }
+
 //------------------------------------------------------------------------------
 template <typename InputType>
 void CoralOptimiser<InputType>::FindNearestNeighbours(
@@ -214,12 +208,13 @@ void CoralOptimiser<InputType>::FindNearestNeighbours(
                                    nanoflann::SearchParams(10));
 
     for (int k = 1; k < nn; ++k) {
-      neighbour_index_.coeffRef(cont, i)=-1;
-      neighbour_index_.coeffRef(cont, ret_indexes[k])=1;
+      neighbour_index_.coeffRef(cont, i) = -1;
+      neighbour_index_.coeffRef(cont, ret_indexes[k]) = 1;
       cont++;
     }
   }
 }
+
 //------------------------------------------------------------------------------
 template <typename InputType>
 Eigen::MatrixXd CoralOptimiser<InputType>::EvaluateModelCost(
@@ -234,6 +229,7 @@ Eigen::MatrixXd CoralOptimiser<InputType>::EvaluateModelCost(
   }
   return ModelMatrix;
 }
+
 //------------------------------------------------------------------------------
 template <typename InputType>
 Eigen::MatrixXd
@@ -277,6 +273,7 @@ CoralOptimiser<InputType>::GetClampedDualNorm(Dual dual, double clamp_value) {
   }
   return replicated_l2_norm;
 }
+
 //------------------------------------------------------------------------------
 template <typename InputType>
 void CoralOptimiser<InputType>::UpdateSmoothnessDual() {
@@ -293,6 +290,17 @@ void CoralOptimiser<InputType>::UpdateSmoothnessDual() {
 }
 //------------------------------------------------------------------------------
 template <typename InputType>
+void CoralOptimiser<InputType>::UpdateCompactnessDual() {
+  Eigen::MatrixXd intermediate_dual, l2_norm_dual;
+  compactness_dual_ = compactness_dual_ + coral_optimiser_params_.beta *
+                                              coral_optimiser_params_.nu *
+                                              primal_relaxed_;
+  compactness_dual_ =
+      SimplexProjectionVector(compactness_dual_.transpose()).transpose();
+}
+
+//------------------------------------------------------------------------------
+template <typename InputType>
 Eigen::MatrixXd CoralOptimiser<InputType>::SortMatrix(Primal primal_matrix) {
   Primal sorted_matrix = primal_matrix;
   for (int i = 0; i < primal_matrix.rows(); ++i) {
@@ -302,6 +310,7 @@ Eigen::MatrixXd CoralOptimiser<InputType>::SortMatrix(Primal primal_matrix) {
   }
   return sorted_matrix;
 }
+
 //------------------------------------------------------------------------------
 template <typename InputType>
 void CoralOptimiser<InputType>::ClampVariable(Primal &primal,
@@ -313,6 +322,7 @@ void CoralOptimiser<InputType>::ClampVariable(Primal &primal,
     }
   }
 }
+
 //------------------------------------------------------------------------------
 template <typename InputType>
 void CoralOptimiser<InputType>::SimplexProjection() {
@@ -419,6 +429,7 @@ CoralOptimiser<InputType>::SimplexProjectionVector(Eigen::MatrixXd matrix) {
   ClampVariable(updated_matrix, 0);
   return updated_matrix;
 }
+
 //------------------------------------------------------------------------------
 template <typename InputType> void CoralOptimiser<InputType>::UpdatePrimal() {
   Primal intermediate_primal, prev_primal;
@@ -433,15 +444,17 @@ template <typename InputType> void CoralOptimiser<InputType>::UpdatePrimal() {
   SimplexProjection();
   primal_relaxed_ = 2 * primal_ - prev_primal;
 }
+
 //------------------------------------------------------------------------------
 template <typename InputType>
 void CoralOptimiser<InputType>::LabelsFromPrimal() {
-for (int i = 0; i < coral_optimiser_params_.num_features; ++i) {
+  for (int i = 0; i < coral_optimiser_params_.num_features; ++i) {
     Eigen::MatrixXi::Index index = 0;
     primal_.row(i).maxCoeff(&index);
     label_(i, 0) = index;
   }
 }
+
 //------------------------------------------------------------------------------
 template <typename InputType>
 void CoralOptimiser<InputType>::UpdateModels(
@@ -459,11 +472,32 @@ void CoralOptimiser<InputType>::UpdateModels(
     (*models)[i]->UpdateModel(model_update_features);
   }
 }
+
 //------------------------------------------------------------------------------
 template <typename InputType>
 EnergyMinimisationResult CoralOptimiser<InputType>::EnergyMinimisation(
-	const Eigen::MatrixXd feature_costs, const Gradient neighbour_index){
+    const Eigen::MatrixXd feature_costs, const Gradient neighbour_index) {
+
+  coral_optimiser_params_.num_features = feature_costs.rows();
+  coral_optimiser_params_.num_labels = feature_costs.cols();
+
+  InitialiseVariables();
+  model_costs_ = feature_costs;
+  neighbour_index_ = neighbour_index;
+
+  for (int iter = 0; iter < coral_optimiser_params_.num_iterations; ++iter) {
+    // Update dual and primal
+    UpdateCompactnessDual();
+    UpdateSmoothnessDual();
+    UpdatePrimal();
+  }
+  LabelsFromPrimal();
+  EnergyMinimisationResult result;
+  result.SoftLabel = primal_;
+  result.DiscreteLabel = label_;
+  return result;
 }
+
 //------------------------------------------------------------------------------
 template <typename InputType>
 EnergyMinimisationResult CoralOptimiser<InputType>::EnergyMinimisation(
@@ -499,8 +533,8 @@ EnergyMinimisationResult CoralOptimiser<InputType>::EnergyMinimisation(
   }
   LOG(INFO) << "Model assignment is " << primal_.colwise().sum();
   EnergyMinimisationResult result;
-result.SoftLabel=primal_;
-result.DiscreteLabel=label_;
+  result.SoftLabel = primal_;
+  result.DiscreteLabel = label_;
   return result;
 }
 

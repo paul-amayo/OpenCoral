@@ -51,7 +51,9 @@ struct CudaOptimiserParams {
 class CudaOptimiser {
 public:
   CudaOptimiser(const cv::Mat &model_costs, cv::Mat nabla,
-                const cv::Mat &inverse_neighbour_index_, CudaOptimiserParams params);
+                const cv::Mat &inverse_neighbour_index_,
+                CudaOptimiserParams params);
+
   ~CudaOptimiser() = default;
 
   cuda::matrix::CudaMatrix<float> Optimise();
@@ -62,7 +64,9 @@ public:
 
 private:
   void PrimalOptimisation();
+
   void SmoothnessDualOptimisation();
+
   void CompactnessDualOptimisation();
 
   cuda::matrix::CudaMatrix<float> primal_;
@@ -80,4 +84,4 @@ private:
 } // namespace optimiser
 } // namespace cuda
 
-#endif //CUDA_OPTIMISER_H_
+#endif // CUDA_OPTIMISER_H_

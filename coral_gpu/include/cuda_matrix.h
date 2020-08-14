@@ -40,27 +40,34 @@ public:
   void StoreElement(T element, size_t row, size_t col);
 
   HOST_DEVICE_CALL
+
   size_t NumRows() const { return num_rows_; };
 
   HOST_DEVICE_CALL
+
   size_t NumCols() const { return num_cols_; };
 
   HOST_DEVICE_CALL
+
   size_t GetPitch() const { return pitch_; };
 
   HOST_DEVICE_CALL
+
   size_t GetStride() const { return stride_; };
 
   HOST_DEVICE_CALL
-  T* data(){return matrix_;}
+
+  T *data() { return matrix_; }
 
   HOST_DEVICE_CALL
-  const T* data()const {return  matrix_;}
+
+  const T *data() const { return matrix_; }
 
   T operator()(float row, float col) const;
 
 private:
   void CreateTexture();
+
   T *matrix_;
   size_t num_rows_;
   size_t num_cols_;
@@ -71,6 +78,7 @@ private:
   cudaTextureAddressMode texture_address_mode_;
   cudaTextureFilterMode texture_filter_mode_;
 };
+
 //------------------------------------------------------------------------------
 template <typename T>
 CudaMatrix<T>::CudaMatrix()
@@ -84,6 +92,7 @@ CudaMatrix<T>::CudaMatrix(size_t num_rows, size_t num_cols)
       texture_(0) {
   SetSize(num_rows, num_cols);
 }
+
 //------------------------------------------------------------------------------
 template <typename T>
 CudaMatrix<T>::CudaMatrix(const CudaMatrix<T> &cuda_matrix)
@@ -97,6 +106,7 @@ CudaMatrix<T>::CudaMatrix(const CudaMatrix<T> &cuda_matrix)
     cuda::memory::AddTextureConsumer(texture_);
   }
 }
+
 //------------------------------------------------------------------------------
 template <typename T>
 CudaMatrix<T>::CudaMatrix(cv::Mat open_cv_matrix)
@@ -104,17 +114,20 @@ CudaMatrix<T>::CudaMatrix(cv::Mat open_cv_matrix)
       texture_(0) {
   *this = open_cv_matrix;
 }
+
 //------------------------------------------------------------------------------
 template <typename T> CudaMatrix<T>::~CudaMatrix() {
   cuda::memory::FreeMemory(matrix_);
   cuda::memory::RemoveTexture(texture_);
 }
+
 //------------------------------------------------------------------------------
 template <typename T> void CudaMatrix<T>::Clear() {
   int opencv_type = OpenCVType<T>();
   cv::Mat open_cv_matrix(num_rows_, num_cols_, opencv_type, cv::Scalar::all(0));
   *this = open_cv_matrix;
 }
+
 //------------------------------------------------------------------------------
 template <typename T>
 CudaMatrix<T> &CudaMatrix<T>::operator=(const cv::Mat &opencv_matrix) {
@@ -123,6 +136,7 @@ CudaMatrix<T> &CudaMatrix<T>::operator=(const cv::Mat &opencv_matrix) {
                           opencv_matrix.step, num_cols_, num_rows_);
   return *this;
 }
+
 //------------------------------------------------------------------------------
 template <typename T> CudaMatrix<T> CudaMatrix<T>::DeepCopy() const {
   CudaMatrix<T> temp_matrix(num_rows_, num_cols_);
@@ -138,6 +152,7 @@ template <typename T> CudaMatrix<T> CudaMatrix<T>::DeepCopy() const {
 
   return temp_matrix;
 }
+
 //------------------------------------------------------------------------------
 template <typename T>
 CudaMatrix<T> &CudaMatrix<T>::operator=(const CudaMatrix<T> &cuda_matrix) {
@@ -158,6 +173,7 @@ CudaMatrix<T> &CudaMatrix<T>::operator=(const CudaMatrix<T> &cuda_matrix) {
 
   return *this;
 }
+
 //------------------------------------------------------------------------------
 template <typename T> cv::Mat CudaMatrix<T>::GetMatrix() {
   int opencv_type = OpenCVType<T>();
@@ -167,6 +183,7 @@ template <typename T> cv::Mat CudaMatrix<T>::GetMatrix() {
 
   return open_cv_matrix;
 }
+
 //------------------------------------------------------------------------------
 template <typename T>
 void CudaMatrix<T>::SetSize(size_t num_rows, size_t num_cols) {
@@ -185,6 +202,7 @@ void CudaMatrix<T>::SetSize(size_t num_rows, size_t num_cols) {
     }
   }
 }
+
 //------------------------------------------------------------------------------
 template <typename T> void CudaMatrix<T>::SetValue(cv::Mat opencv_matrix) {
   *this = opencv_matrix;
@@ -199,20 +217,25 @@ template <typename T> T CudaMatrix<T>::GetValue(size_t row, size_t col) {
   }
   return value;
 }
+
 //------------------------------------------------------------------------------
 template <typename T>
 DEVICE_ONLY_CALL void CudaMatrix<T>::StoreElement(T element, size_t row,
                                                   size_t col) {
   matrix_[row * stride_ + col] = element;
 }
+
 //------------------------------------------------------------------------------
 template <typename T>
-DEVICE_ONLY_CALL T CudaMatrix<T>::operator()(float row, float col) const {
+DEVICE_ONLY_CALL T
+
+CudaMatrix<T>::operator()(float row, float col) const {
   T value;
   tex2D(&value, texture_, col + 0.5f, row + 0.5f);
   return value;
   // return matrix_[row * stride_ + col];
 }
+
 //------------------------------------------------------------------------------
 template <typename T> void CudaMatrix<T>::CreateTexture() {
 

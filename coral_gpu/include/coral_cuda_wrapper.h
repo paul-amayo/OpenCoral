@@ -14,31 +14,36 @@ class CoralCudaWrapper : public coral::optimiser::CoralOptimiser<ModelType> {
 
 public:
   CoralCudaWrapper();
+
   CoralCudaWrapper(const coral::optimiser::CoralOptimiserParams params);
+
   ~CoralCudaWrapper() = default;
 
-  coral::optimiser::EnergyMinimisationResult EnergyMinimisation(const coral::features::FeatureVectorSPtr features,
-                          coral::models::ModelVectorSPtr models);
+  coral::optimiser::EnergyMinimisationResult
+  EnergyMinimisation(const coral::features::FeatureVectorSPtr features,
+                     coral::models::ModelVectorSPtr models);
 
-  coral::optimiser::EnergyMinimisationResult EnergyMinimisation(const Eigen::MatrixXd feature_costs,
-                          const Eigen::SparseMatrix<double> neighbourhood_index);
+  coral::optimiser::EnergyMinimisationResult
+  EnergyMinimisation(const Eigen::MatrixXd feature_costs,
+                     const Eigen::SparseMatrix<double> neighbourhood_index);
 
   void FindNearestNeighbours(const coral::features::FeatureVectorSPtr features,
                              cv::Mat &neighbour_index,
                              cv::Mat &inverse_neighbour_index);
 
-void WrapNeighbourHood(const Eigen::SparseMatrix<double> neighbourhood, cv::Mat& nabla, cv::Mat& nabla_t);
+  void WrapNeighbourHood(const Eigen::SparseMatrix<double> neighbourhood,
+                         cv::Mat &nabla, cv::Mat &nabla_t);
 
   cv::Mat Eigen2Cv(Eigen::MatrixXf eigen_matrix);
 
   Eigen::MatrixXf Cv2Eigen(cv::Mat opencv_matrix);
-
 
 private:
   void WrapParams(const coral::optimiser::CoralOptimiserParams params);
 
   cuda::optimiser::CudaOptimiserParams params_;
 };
+
 //------------------------------------------------------------------------------
 template <typename ModelType>
 CoralCudaWrapper<ModelType>::CoralCudaWrapper(
@@ -46,11 +51,12 @@ CoralCudaWrapper<ModelType>::CoralCudaWrapper(
     : coral::optimiser::CoralOptimiser<ModelType>(params) {
   WrapParams(params);
 }
+
 //------------------------------------------------------------------------------
 template <typename ModelType>
 void CoralCudaWrapper<ModelType>::WrapParams(
     const coral::optimiser::CoralOptimiserParams params) {
-params_.num_labels = params.num_labels;
+  params_.num_labels = params.num_labels;
   params_.num_features = params.num_features;
   params_.num_neighbours = params.num_neighbours;
   params_.num_iterations = params.num_iterations;
@@ -60,11 +66,12 @@ params_.num_labels = params.num_labels;
   params_.beta = params.beta;
   params_.nu = params.nu;
   params_.alpha = params.alpha;
-  params_.tau=params.tau;
+  params_.tau = params.tau;
 
   params_.max_neighbours = params.max_neighbours;
   params_.outlier_threshold = params.outlier_threshold;
 }
+
 //------------------------------------------------------------------------------
 template <typename ModelType>
 void CoralCudaWrapper<ModelType>::FindNearestNeighbours(
@@ -142,88 +149,97 @@ void CoralCudaWrapper<ModelType>::FindNearestNeighbours(
   neighbour_index = neighbour_index.t();
   inverse_neighbour_index = inverse_neighbour_index.t();
 }
+
 //------------------------------------------------------------------------------
 template <typename ModelType>
-void  CoralCudaWrapper<ModelType>::WrapNeighbourHood(const Eigen::SparseMatrix<double> neighbourhood,
-cv::Mat& nabla, cv::Mat& nabla_t){
-nabla=cv::Mat(params_.num_features,params_.num_neighbours,cv::DataType<float>::type);
+void CoralCudaWrapper<ModelType>::WrapNeighbourHood(
+    const Eigen::SparseMatrix<double> neighbourhood, cv::Mat &nabla,
+    cv::Mat &nabla_t) {
+  nabla = cv::Mat(params_.num_features, params_.num_neighbours,
+                  cv::DataType<float>::type);
 
-std::vector<std::vector<float> > transpose_nabla_vector;
-for(int j=0;j<params_.num_features;++j){
-	std::vector<float> temp_vector;
-	transpose_nabla_vector.push_back(temp_vector);
+  std::vector<std::vector<float>> transpose_nabla_vector;
+  for (int j = 0; j < params_.num_features; ++j) {
+    std::vector<float> temp_vector;
+    transpose_nabla_vector.push_back(temp_vector);
+  }
+
+  uint max_neighbours = 0;
+
+  for (int k = 0; k < neighbourhood.outerSize(); ++k) {
+    for (Eigen::SparseMatrix<double>::InnerIterator it(neighbourhood, k); it;
+         ++it) {
+      double val = it.value();
+      if (val == 1) {
+        int row_index = it.row();
+        int col_index = it.col();
+        int row_modulo = floor((float)row_index / params_.num_neighbours);
+        int col_modulo = row_index % params_.num_neighbours;
+        nabla.at<float>(row_modulo, col_modulo) = col_index;
+        transpose_nabla_vector[col_index].push_back(row_modulo);
+        if (max_neighbours < transpose_nabla_vector[col_index].size()) {
+          max_neighbours = transpose_nabla_vector[col_index].size();
+        }
+      }
+    }
+  }
+
+  params_.max_neighbours = max_neighbours;
+  for (int j = 0; j < params_.num_features; j++) {
+    std::vector<float> temp_vector = transpose_nabla_vector[j];
+    while (temp_vector.size() < params_.max_neighbours) {
+      temp_vector.push_back(-1);
+    }
+    cv::Mat1f row_1_nabla_t(cv::Mat1f(temp_vector).t());
+    nabla_t.push_back(row_1_nabla_t);
+  }
+  nabla = nabla.t();
+  nabla_t = nabla_t.t();
 }
 
-uint max_neighbours=0;
-
-for(int k=0;k<neighbourhood.outerSize();++k){
-	for(Eigen::SparseMatrix<double>::InnerIterator it(neighbourhood,k);it;++it){
-		double val= it.value();
-		if(val==1){
-			int row_index=it.row();
-			int col_index=it.col();
-			int row_modulo =floor((float)row_index/params_.num_neighbours);
-			int col_modulo=row_index%params_.num_neighbours;
-			nabla.at<float>(row_modulo,col_modulo)=col_index;
-			transpose_nabla_vector[col_index].push_back(row_modulo);
-			if(max_neighbours< transpose_nabla_vector[col_index].size()){
-				max_neighbours=transpose_nabla_vector[col_index].size();
-			}
-		}
-   	}
-}
-
-params_.max_neighbours=max_neighbours;
-for(int j=0;j<params_.num_features;j++){
-	std::vector<float> temp_vector =transpose_nabla_vector[j];
-	while(temp_vector.size()<params_.max_neighbours){
-		temp_vector.push_back(-1);
-	}
-	cv::Mat1f row_1_nabla_t(cv::Mat1f(temp_vector).t());
-	nabla_t.push_back(row_1_nabla_t);
-
-}
-nabla=nabla.t();
-nabla_t=nabla_t.t();
-}
 //------------------------------------------------------------------------------
 template <typename ModelType>
-coral::optimiser::EnergyMinimisationResult CoralCudaWrapper<ModelType>::EnergyMinimisation(
-const Eigen::MatrixXd feature_costs,const Eigen::SparseMatrix<double> neighbourhood_index){
+coral::optimiser::EnergyMinimisationResult
+CoralCudaWrapper<ModelType>::EnergyMinimisation(
+    const Eigen::MatrixXd feature_costs,
+    const Eigen::SparseMatrix<double> neighbourhood_index) {
 
-//Update the params
-params_.num_features=feature_costs.rows();
-params_.num_labels=feature_costs.cols();
-this->UpdateNumFeatures(params_.num_features);
-this->UpdateNumLabels(params_.num_labels);
+  // Update the params
+  params_.num_features = feature_costs.rows();
+  params_.num_labels = feature_costs.cols();
+  this->UpdateNumFeatures(params_.num_features);
+  this->UpdateNumLabels(params_.num_labels);
 
-//  Get neighbour_hood
-cv::Mat neighbour_index_cv,inverse_neighbour_index;
-WrapNeighbourHood(neighbourhood_index,neighbour_index_cv,inverse_neighbour_index);
-cv::Mat model_costs_cv=Eigen2Cv(feature_costs.transpose().cast<float>());
+  //  Get neighbour_hood
+  cv::Mat neighbour_index_cv, inverse_neighbour_index;
+  WrapNeighbourHood(neighbourhood_index, neighbour_index_cv,
+                    inverse_neighbour_index);
+  cv::Mat model_costs_cv = Eigen2Cv(feature_costs.transpose().cast<float>());
 
-//Initialise CUDA Optimiser
-cuda::optimiser::CudaOptimiser cuda_optimiser(model_costs_cv, neighbour_index_cv,
- inverse_neighbour_index,params_);
+  // Initialise CUDA Optimiser
+  cuda::optimiser::CudaOptimiser cuda_optimiser(
+      model_costs_cv, neighbour_index_cv, inverse_neighbour_index, params_);
 
-LOG(INFO)<<"Begin optimisation";
-cuda::matrix::CudaMatrix<float> primal=cuda_optimiser.Optimise();
+  LOG(INFO) << "Begin optimisation";
+  cuda::matrix::CudaMatrix<float> primal = cuda_optimiser.Optimise();
 
-Eigen::MatrixXf primal_eig=Cv2Eigen(primal.GetMatrix().t());
-this->SetPrimal(primal_eig.cast<double>());
-this->LabelsFromPrimal();
-LOG(INFO)<<"Finish optimisation";
-LOG(INFO)<<"Primal is \n"<<this->GetPrimal();
+  Eigen::MatrixXf primal_eig = Cv2Eigen(primal.GetMatrix().t());
+  this->SetPrimal(primal_eig.cast<double>());
+  this->LabelsFromPrimal();
+  LOG(INFO) << "Finish optimisation";
+  LOG(INFO) << "Primal is \n" << this->GetPrimal();
 
-coral::optimiser::EnergyMinimisationResult result;
+  coral::optimiser::EnergyMinimisationResult result;
 
-result.SoftLabel=this->GetPrimal();
-result.DiscreteLabel=this->GetLabel();
-return result;
+  result.SoftLabel = this->GetPrimal();
+  result.DiscreteLabel = this->GetLabel();
+  return result;
 }
+
 //------------------------------------------------------------------------------
 template <typename ModelType>
-coral::optimiser::EnergyMinimisationResult CoralCudaWrapper<ModelType>::EnergyMinimisation(
+coral::optimiser::EnergyMinimisationResult
+CoralCudaWrapper<ModelType>::EnergyMinimisation(
     const coral::features::FeatureVectorSPtr features,
     coral::models::ModelVectorSPtr models) {
 
@@ -263,19 +279,17 @@ coral::optimiser::EnergyMinimisationResult CoralCudaWrapper<ModelType>::EnergyMi
 
     std::cout << " The optimisation time was " << optimisation_time
               << " miliseconds \n";
-Eigen::MatrixXf primal_eig=Cv2Eigen(primal.GetMatrix().t());
-this->SetPrimal(primal_eig.cast<double>());
-this->LabelsFromPrimal();
-
-
+    Eigen::MatrixXf primal_eig = Cv2Eigen(primal.GetMatrix().t());
+    this->SetPrimal(primal_eig.cast<double>());
+    this->LabelsFromPrimal();
   }
-coral::optimiser::EnergyMinimisationResult result;
+  coral::optimiser::EnergyMinimisationResult result;
 
-result.SoftLabel=this->GetPrimal();
-result.DiscreteLabel=this->GetLabel();
-return result;
-
+  result.SoftLabel = this->GetPrimal();
+  result.DiscreteLabel = this->GetLabel();
+  return result;
 }
+
 //------------------------------------------------------------------------------
 template <typename ModelType>
 cv::Mat CoralCudaWrapper<ModelType>::Eigen2Cv(Eigen::MatrixXf eigen_matrix) {
@@ -283,6 +297,7 @@ cv::Mat CoralCudaWrapper<ModelType>::Eigen2Cv(Eigen::MatrixXf eigen_matrix) {
   cv::eigen2cv(eigen_matrix, output);
   return output;
 }
+
 //------------------------------------------------------------------------------
 template <typename ModelType>
 Eigen::MatrixXf CoralCudaWrapper<ModelType>::Cv2Eigen(cv::Mat opencv_matrix) {
