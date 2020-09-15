@@ -20,6 +20,8 @@ find_package(Boost REQUIRED)
 include_directories(${Boost_INCLUDE_DIRS})
 set(CMAKE_CXX_STANDARD 14)
 set(CORAL_UTIL_SRCS
+        src/coral_feature_stereo_correspondance.cpp
+        src/coral_pnp_model.cpp
         src/coral_model_line.cpp
         src/coral_feature_point.cpp
         include/coral.h
@@ -44,9 +46,21 @@ target_include_directories(test_executable PRIVATE ${Boost_INCLUDE_DIRS})
 target_compile_definitions(test_executable PRIVATE "BOOST_TEST_DYN_LINK=1")
 # indicates the link paths
 target_link_libraries(test_executable open_coral ${Boost_UNIT_TEST_FRAMEWORK_LIBRARY})
-
 # declares a test with our executable
 add_test(NAME test1 COMMAND test_executable)
+
+
+# creates the executable
+add_executable(pnp_model_test tests/coral_pnp_tests.cpp)
+# indicates the include paths
+target_include_directories(pnp_model_test PRIVATE ${Boost_INCLUDE_DIRS})
+# indicates the shared library variant
+target_compile_definitions(pnp_model_test PRIVATE "BOOST_TEST_DYN_LINK=1")
+# indicates the link paths
+target_link_libraries(pnp_model_test open_coral ${Boost_UNIT_TEST_FRAMEWORK_LIBRARY})
+# declares a test with our executable
+add_test(NAME coral_pnp_model_test COMMAND pnp_model_test)
+
 # creates the executable
 add_executable(coral_test tests/coral_tests.cpp)
 # indicates the include paths
@@ -55,6 +69,6 @@ target_include_directories(coral_test PRIVATE ${Boost_INCLUDE_DIRS})
 target_compile_definitions(coral_test PRIVATE "BOOST_TEST_DYN_LINK=1")
 # indicates the link paths
 target_link_libraries(coral_test open_coral ${Boost_UNIT_TEST_FRAMEWORK_LIBRARY})
-
 # declares a test with our executable
 add_test(NAME coral_library_test COMMAND coral_test)
+

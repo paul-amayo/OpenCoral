@@ -14,7 +14,6 @@ namespace models {
 class CoralModelBase {
 public:
 
-  CoralModelBase() =default;
 
   virtual ~CoralModelBase() = default;
 
