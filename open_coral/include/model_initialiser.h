@@ -48,7 +48,6 @@ void ModelInitialiser<InputType>::Initialise(
     float threshold, ModelVectorSPtr models) {
   // clear the model vector
   models->clear();
-
   LOG(INFO) << "Begin initialising";
 
   features::FeatureVectorSPtr features_init(new features::FeatureVector);
@@ -103,15 +102,14 @@ void ModelInitialiser<InputType>::Ransac(
     Eigen::MatrixXd feature_costs_model =
         output_model->EvaluateCost(model_selection_features);
 
-    // cv::waitKey(0);
     Eigen::MatrixXd feature_costs = output_model->EvaluateCost(input_features);
-
     uint num_inliers = (feature_costs.array() < threshold).count();
 
     Eigen::Matrix<bool, Eigen::Dynamic, Eigen::Dynamic> inlier_matrix =
         (feature_costs.array() < threshold).matrix();
 
     if (num_inliers > max_inliers) {
+      LOG(INFO)<<"Number inliers is "<<num_inliers;
       max_inliers = num_inliers;
       output_inlier_matrix = inlier_matrix;
       current_prob = (float)max_inliers / num_points;

@@ -20,7 +20,7 @@ find_package(Boost REQUIRED)
 include_directories(${Boost_INCLUDE_DIRS})
 set(CMAKE_CXX_STANDARD 14)
 set(CORAL_UTIL_SRCS
-        src/coral_feature_stereo_correspondance.cpp
+        src/coral_feature_stereo_correspondence.cpp
         src/coral_pnp_model.cpp
         src/coral_model_line.cpp
         src/coral_feature_point.cpp
@@ -72,3 +72,13 @@ target_link_libraries(coral_test open_coral ${Boost_UNIT_TEST_FRAMEWORK_LIBRARY}
 # declares a test with our executable
 add_test(NAME coral_library_test COMMAND coral_test)
 
+# creates the executable
+add_executable(stereo_test tests/coral_stereo_tests.cpp)
+# indicates the include paths
+target_include_directories(stereo_test PRIVATE ${Boost_INCLUDE_DIRS})
+# indicates the shared library variant
+target_compile_definitions(stereo_test PRIVATE "BOOST_TEST_DYN_LINK=1")
+# indicates the link paths
+target_link_libraries(stereo_test open_coral ${Boost_UNIT_TEST_FRAMEWORK_LIBRARY})
+# declares a test with our executable
+add_test(NAME coral_stereo_test COMMAND stereo_test)

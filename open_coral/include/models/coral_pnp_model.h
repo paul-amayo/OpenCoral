@@ -2,7 +2,7 @@
 #define CORAL_PNP_MODEL_H_
 
 #include "../features/coral_feature.h"
-#include "../features/coral_feature_stereo_correspondance.h"
+#include "../features/coral_feature_stereo_correspondence.h"
 #include "coral_model.h"
 
 #include <Eigen/Core>
@@ -46,7 +46,7 @@ private:
 
   // Functions from the original EPnP code
   void
-  AddCorrespondences(const features::CoralFeatureStereoCorrespondanceVectorSPtr
+  AddCorrespondences(const features::CoralFeatureStereoCorrespondenceVectorSPtr
                          &stereo_features);
 
   double ComputePose(const Rot &R, Trans T);
@@ -71,7 +71,7 @@ private:
   static void FindBetasApprox2(const cv::Mat &L_6x10, const cv::Mat &Rho,
                                Eigen::Vector4d &betas);
 
-  void FindBetasApprox3(const cv::Mat &L_6x10, const cv::Mat &Rho,
+  static void FindBetasApprox3(const cv::Mat &L_6x10, const cv::Mat &Rho,
                         Eigen::Vector4d &betas);
 
   static void QrSolve(cv::Mat &A, cv::Mat &b, cv::Mat &X);
@@ -84,13 +84,13 @@ private:
 
   void ComputeL6x10(const cv::Mat &ut, cv::Mat &L_6x10);
 
-  void GaussNewton(const cv::Mat L_6x10, const cv::Mat Rho,
+  static void GaussNewton(const cv::Mat& L_6x10, const cv::Mat& Rho,
                    Eigen::Vector4d &current_betas);
 
   static void ComputeAandbGN(const cv::Mat &l_6x10, const cv::Mat rho,
-                             Eigen::MatrixXd cb, cv::Mat A, cv::Mat b);
+                             const Eigen::MatrixXd cb, cv::Mat& A, cv::Mat& b);
 
-  double ComputeRotTrans(const cv::Mat ut, const Eigen::MatrixXd betas, Rot &R,
+  double ComputeRotTrans(const cv::Mat ut, const Eigen::MatrixXd& betas, Rot &R,
                          Trans &t);
 
   void EstimateRotTrans(Rot &R, Trans &t);

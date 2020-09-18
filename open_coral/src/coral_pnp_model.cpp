@@ -7,7 +7,12 @@
 namespace coral {
 namespace models {
 //------------------------------------------------------------------------------
-CoralPNPModel::CoralPNPModel() {}
+CoralPNPModel::CoralPNPModel() {
+  u_c_ = 240;
+  v_c_ = 320;
+  f_u_ = 800;
+  f_v_ = 800;
+}
 //------------------------------------------------------------------------------
 void CoralPNPModel::SetCameraParams(Eigen::MatrixXd K) {
   f_u_ = K(0, 0);
@@ -24,7 +29,32 @@ Eigen::MatrixXd CoralPNPModel::GetCameraParams() const {
 //------------------------------------------------------------------------------
 Eigen::MatrixXd
 CoralPNPModel::EvaluateCost(const features::FeatureVectorSPtr &features) {
-  return Eigen::MatrixXd::Zero(3, 3);
+
+  Eigen::MatrixXd point_values(features->size(), 1);
+  int feature_no = 0;
+
+  for (const auto &feature : *features) {
+    features::CoralFeatureStereoCorrespondenceSPtr stereo_feature =
+        boost::dynamic_pointer_cast<features::CoralFeatureStereoCorrespondence>(
+            feature);
+
+    Eigen::Vector3d point_world = stereo_feature->GetPoint3d();
+    Eigen::Vector2d point_uv = stereo_feature->GetPointUV();
+
+    double Xc = Dot(R_curr_.row(0), point_world) + t_curr_[0];
+    double Yc = Dot(R_curr_.row(1), point_world) + t_curr_[1];
+    double inv_Zc = 1.0 / (Dot(R_curr_.row(2), point_world) + t_curr_[2]);
+
+    double ue = u_c_ + f_u_ * Xc * inv_Zc;
+    double ve = v_c_ + f_v_ * Yc * inv_Zc;
+    double u = point_uv(0);
+    double v = point_uv(1);
+
+    point_values(feature_no) = sqrt((u - ue) * (u - ue) + (v - ve) * (v - ve));
+    feature_no++;
+  }
+
+  return point_values;
 }
 //------------------------------------------------------------------------------
 void CoralPNPModel::UpdateModel(const features::FeatureVectorSPtr &features) {
@@ -32,35 +62,41 @@ void CoralPNPModel::UpdateModel(const features::FeatureVectorSPtr &features) {
   num_correspondences_ = features->size();
 
   // Cast features to derived class
-  LOG(INFO) << "Updating the model" << std::endl;
-  features::CoralFeatureStereoCorrespondanceVectorSPtr stereo_features(
-      new features::CoralFeatureStereoCorrespondanceVector);
+  features::CoralFeatureStereoCorrespondenceVectorSPtr stereo_features(
+      new features::CoralFeatureStereoCorrespondenceVector);
   for (const auto &feature : *features) {
-    features::CoralFeatureStereoCorrespondanceSPtr stereo_feature =
-        boost::dynamic_pointer_cast<features::CoralFeatureStereoCorrespondance>(
+    features::CoralFeatureStereoCorrespondenceSPtr stereo_feature =
+        boost::dynamic_pointer_cast<features::CoralFeatureStereoCorrespondence>(
             feature);
     stereo_features->push_back(stereo_feature);
   }
 
   // Add the correspondences
   AddCorrespondences(stereo_features);
-  LOG(INFO) << "Added correspondances";
-
   // compute the pose
   Rot R;
   Trans t;
   double err = ComputePose(R, t);
-  LOG(INFO) << "Err is " << err;
+
+  // Reset the correspondences
+  pws_.clear();
+  us_.clear();
+  alphas_.clear();
+  pcs_.clear();
 }
 //------------------------------------------------------------------------------
 int CoralPNPModel::ModelDegreesOfFreedom() { return 4; }
 //------------------------------------------------------------------------------
 Eigen::MatrixXd CoralPNPModel::ModelEquation() {
+
+  LOG(INFO) << " R is \n" << R_curr_;
+  LOG(INFO) << " T is \n" << t_curr_;
+
   return Eigen::MatrixXd::Zero(4, 4);
 }
 //------------------------------------------------------------------------------
 void CoralPNPModel::AddCorrespondences(
-    const features::CoralFeatureStereoCorrespondanceVectorSPtr
+    const features::CoralFeatureStereoCorrespondenceVectorSPtr
         &stereo_features) {
   num_correspondences_ = stereo_features->size();
   int correspondance_no = 0;
@@ -162,8 +198,6 @@ double CoralPNPModel::ComputePose(const Rot &R, Trans T) {
     N = 1;
   if (error_vector[2] < error_vector[N])
     N = 2;
-  LOG(INFO) << " R is \n" << Rot_vector[N];
-  LOG(INFO) << " T is \n" << trans_vector[N];
 
   R_curr_ = Rot_vector[N];
   t_curr_ = trans_vector[N];
@@ -526,9 +560,9 @@ void CoralPNPModel::ComputeL6x10(const cv::Mat &ut, cv::Mat &L_6x10) {
 }
 
 //------------------------------------------------------------------------------
-void CoralPNPModel::GaussNewton(const cv::Mat L_6x10, const cv::Mat Rho,
+void CoralPNPModel::GaussNewton(const cv::Mat &L_6x10, const cv::Mat &Rho,
                                 Eigen::Vector4d &current_betas) {
-  const int iterations_number = 1;
+  const int iterations_number = 5;
 
   cv::Mat A = cv::Mat(6, 4, CV_64F);
   cv::Mat B = cv::Mat(6, 1, CV_64F);
@@ -536,6 +570,7 @@ void CoralPNPModel::GaussNewton(const cv::Mat L_6x10, const cv::Mat Rho,
 
   for (int k = 0; k < iterations_number; k++) {
     ComputeAandbGN(L_6x10, Rho, current_betas, A, B);
+    // LOG(INFO)<<"A is "<<A;
     QrSolve(A, B, X);
 
     for (int i = 0; i < 4; i++)
@@ -545,7 +580,8 @@ void CoralPNPModel::GaussNewton(const cv::Mat L_6x10, const cv::Mat Rho,
 
 //------------------------------------------------------------------------------
 void CoralPNPModel::ComputeAandbGN(const cv::Mat &l_6x10, const cv::Mat rho,
-                                   Eigen::MatrixXd cb, cv::Mat A, cv::Mat b) {
+                                   const Eigen::MatrixXd cb, cv::Mat &A,
+                                   cv::Mat &b) {
   for (int i = 0; i < 6; i++) {
     A.at<double>(i, 0) =
         2 * l_6x10.at<double>(i, 0) * cb(0) + l_6x10.at<double>(i, 1) * cb(1) +
@@ -576,7 +612,7 @@ void CoralPNPModel::ComputeAandbGN(const cv::Mat &l_6x10, const cv::Mat rho,
 
 //------------------------------------------------------------------------------
 double CoralPNPModel::ComputeRotTrans(const cv::Mat ut,
-                                      const Eigen::MatrixXd betas, Rot &R,
+                                      const Eigen::MatrixXd &betas, Rot &R,
                                       Trans &t) {
   ComputeCcs(betas, ut);
   ComputePcs();
