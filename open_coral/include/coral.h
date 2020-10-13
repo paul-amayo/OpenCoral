@@ -41,8 +41,8 @@ struct EnergyMinimisationResult {
 
 template <typename Model> class CoralOptimiser {
 
-    typedef Eigen::MatrixXd Dual;
-    typedef Eigen::MatrixXd Primal;
+  typedef Eigen::MatrixXd Dual;
+  typedef Eigen::MatrixXd Primal;
   typedef Eigen::SparseMatrix<double> Gradient;
   typedef Eigen::MatrixXd Label;
 

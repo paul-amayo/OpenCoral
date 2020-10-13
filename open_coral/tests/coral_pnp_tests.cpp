@@ -110,14 +110,16 @@ struct PnpModelFixture {
     RandomPose(R, t);
 
     image_1_left = cv::imread(
-        "/Users/paulamayo/code/data/kitti/kitti/image_02/data/0000000004.png");
+        "/home/paulamayo/data/kitti/2011_09_26/2011_09_26_drive_0039_sync/image_02/data/0000000004.png");
     image_2_left = cv::imread(
-        "/Users/paulamayo/code/data/kitti/kitti/image_02/data/0000000005.png");
+        "/home/paulamayo/data/kitti/2011_09_26/2011_09_26_drive_0039_sync/image_02/data/0000000005.png");
 
     image_1_right = cv::imread(
-        "/Users/paulamayo/code/data/kitti/kitti/image_03/data/0000000004.png");
+        "//home/paulamayo/data/kitti/2011_09_26/2011_09_26_drive_0039_sync"
+        "/image_03/data/0000000004.png");
     image_2_right = cv::imread(
-        "/Users/paulamayo/code/data/kitti/kitti/image_03/data/0000000005.png");
+        "/home/paulamayo/data/kitti/2011_09_26/2011_09_26_drive_0039_sync"
+        "/image_03/data/0000000005.png");
     for (int i = 0; i < n; ++i) {
       Eigen::Vector3d point3d = RandomPoint();
       Eigen::Vector2d pointuv = ProjectWithNoise(R, t, point3d);
@@ -193,8 +195,14 @@ BOOST_FIXTURE_TEST_CASE(image_test, PnpModelFixture) {
   std::vector<cv::KeyPoint> keypoints_2;
   cv::Mat descriptors_2;
 
-  cv::ORB orb(1000);
-  orb.detect(image_grey_1_left, keypoints_1);
+
+  cv::Ptr<cv::ORB> orb = cv::ORB::create();
+
+  orb->setMaxFeatures(1000);
+  orb->detect(image_grey_1_left,keypoints_1);
+
+  LOG(INFO)<<"Obtain the orb keypoints";
+
 
   // Filter orb keypoints
   int num_bins = 20;
@@ -227,10 +235,9 @@ BOOST_FIXTURE_TEST_CASE(image_test, PnpModelFixture) {
 
   keypoints_1 = keypoints_out;
   // Get Descriptor
-  orb.compute(image_grey_1_left, keypoints_1, descriptors_1);
-
-  orb.detect(image_grey_2_left, keypoints_2);
-  orb.compute(image_grey_2_left, keypoints_2, descriptors_2);
+  orb->compute(image_grey_1_left, keypoints_1, descriptors_1);
+  orb->detect(image_grey_2_left, keypoints_2);
+  orb->compute(image_grey_2_left, keypoints_2, descriptors_2);
 
   cv::Mat image_drawn_1, image_drawn_2;
   cv::drawKeypoints(image_1_left, keypoints_1, image_drawn_1);

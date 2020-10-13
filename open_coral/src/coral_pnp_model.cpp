@@ -1,7 +1,8 @@
 #include "../include/models/coral_pnp_model.h"
 #include "glog/logging.h"
 #include "opencv2/core/core.hpp"
-#include <cxeigen.hpp>
+#include "opencv2/features2d.hpp"
+#include "opencv2/xfeatures2d.hpp"
 #include <opencv2/core/core_c.h>
 
 namespace coral {
