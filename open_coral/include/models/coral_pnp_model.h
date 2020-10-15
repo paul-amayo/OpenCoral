@@ -18,7 +18,7 @@ typedef Eigen::Vector3d Trans;
 
 class CoralPNPModel : public CoralModelBase {
 public:
-  CoralPNPModel();
+  CoralPNPModel(Eigen::Matrix3d K);
 
   virtual ~CoralPNPModel() = default;
 
@@ -104,13 +104,16 @@ private:
   std::vector<Eigen::Vector3d> pws_, pcs_;
   std::vector<Eigen::Vector2d> us_;
 
-  int num_correspondences_;
+  int num_correspondences_{};
 
   Eigen::MatrixXd cws_, ccs_;
 
   // Current Estimation
   Rot R_curr_;
   Trans t_curr_;
+
+  cv::Mat R_matrix_;
+  cv::Mat t_matrix_;
 };
 
 } // namespace models

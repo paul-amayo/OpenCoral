@@ -63,25 +63,18 @@ BOOST_FIXTURE_TEST_CASE(DisparityComputation, StereoCorrespondenceFixture) {
   cv::cvtColor(image_2_right, image_grey_2_right, cv::COLOR_BGR2GRAY);
 
   // calculate disparity
-  cv::StereoSGBM sgbm;
 
   int wsize = 3;
   int max_disp = 80;
 
-  cv::StereoSGBM left_matcher(
-      0, max_disp, wsize);
-
-  //  = cv::StereoSGBM::create(0,max_disp,wsize);
-                           //  left_matcher.setP1(24*wsize*wsize);
-                           //  left_matcher.setP2(96*wsize*wsize);
-                           //  left_matcher.setPreFilterCap(63);
-                           //
-                           //  left_matcher.P1=24*wsize*wsize;
-                           //  left_matcher.P2=96*wsize*wsize;
-                           //  left_matcher.preFilterCap=63;
+  cv::Ptr<cv::StereoSGBM> left_matcher =
+      cv::StereoSGBM::create(0, max_disp, wsize);
+  left_matcher->setP1(24 * wsize * wsize);
+  left_matcher->setP2(96 * wsize * wsize);
+  left_matcher->setPreFilterCap(63);
 
   cv::Mat left_disp;
-  left_matcher.operator()(image_grey_2_left, image_grey_2_right, left_disp);
+  left_matcher->compute(image_grey_2_left, image_grey_2_right, left_disp);
 
   double disparity_min, disparity_max;
   cv::minMaxIdx(left_disp, &disparity_min, &disparity_max);
@@ -91,12 +84,12 @@ BOOST_FIXTURE_TEST_CASE(DisparityComputation, StereoCorrespondenceFixture) {
                       -disparity_min / range);
 
   cv::Mat disp_char;
-  left_disp.convertTo(disp_char,CV_32F);
+  left_disp.convertTo(disp_char, CV_32F);
 
   cv::Mat disparity_colour;
   cv::applyColorMap(disparity_normalised, disparity_colour, cv::COLORMAP_JET);
   disparity_colour.convertTo(disparity_colour, CV_32FC3, 1 / 255.0);
-  //cv::addWeighted(image_2_left, 0.3, disparity_colour, 0.7, 0,
+  // cv::addWeighted(image_2_left, 0.3, disparity_colour, 0.7, 0,
   //                disparity_colour);
 
   cv::imshow("Disparity Image", disparity_colour);
@@ -107,12 +100,13 @@ BOOST_FIXTURE_TEST_CASE(DisparityComputation, StereoCorrespondenceFixture) {
   std::vector<cv::KeyPoint> keypoints_2;
   cv::Mat descriptors_2;
 
-  cv::ORB orb(50);
-  orb.detect(image_grey_1_left, keypoints_1);
-  orb.compute(image_grey_1_left, keypoints_1, descriptors_1);
+  cv::Ptr<cv::ORB> orb = cv::ORB::create();
+  orb->setMaxFeatures(50);
+  orb->detect(image_grey_1_left, keypoints_1);
+  orb->compute(image_grey_1_left, keypoints_1, descriptors_1);
 
-  orb.detect(image_grey_2_left, keypoints_2);
-  orb.compute(image_grey_2_left, keypoints_2, descriptors_2);
+  orb->detect(image_grey_2_left, keypoints_2);
+  orb->compute(image_grey_2_left, keypoints_2, descriptors_2);
 
   cv::Mat image_drawn_1, image_drawn_2;
   cv::drawKeypoints(image_1_left, keypoints_1, image_drawn_1);
@@ -144,8 +138,9 @@ BOOST_FIXTURE_TEST_CASE(DisparityComputation, StereoCorrespondenceFixture) {
     LOG(INFO) << "Point 3d is " << new_feature.GetPoint3d().transpose();
     LOG(INFO) << " Disparity coral is " << new_feature.GetDisparity();
     LOG(INFO) << "Disparity BM is "
-              << disp_char.at<float>(keypoints_2[good_match.queryIdx].pt)/16;
+              << disp_char.at<float>(keypoints_2[good_match.queryIdx].pt) / 16;
 
-    //LOG(INFO)<<"Disp difference is "<<disp_char.at<uchar>(keypoints_2[good_match.queryIdx].pt)/16-new_feature.GetDisparity();
+    // LOG(INFO)<<"Disp difference is
+    // "<<disp_char.at<uchar>(keypoints_2[good_match.queryIdx].pt)/16-new_feature.GetDisparity();
   }
 }

@@ -8,11 +8,11 @@
 namespace coral {
 namespace models {
 //------------------------------------------------------------------------------
-CoralPNPModel::CoralPNPModel() {
-  u_c_ = 240;
-  v_c_ = 320;
-  f_u_ = 800;
-  f_v_ = 800;
+CoralPNPModel::CoralPNPModel(Eigen::Matrix3d K) {
+  f_u_ = K(0, 0);
+  u_c_ = K(0, 2);
+  f_v_ = K(1, 1);
+  v_c_ = K(1, 2);
 }
 //------------------------------------------------------------------------------
 void CoralPNPModel::SetCameraParams(Eigen::MatrixXd K) {
@@ -65,11 +65,50 @@ void CoralPNPModel::UpdateModel(const features::FeatureVectorSPtr &features) {
   // Cast features to derived class
   features::CoralFeatureStereoCorrespondenceVectorSPtr stereo_features(
       new features::CoralFeatureStereoCorrespondenceVector);
+
+  std::vector<cv::Point3d> points3d;
+  std::vector<cv::Point2d> points2d;
+
+  cv::Mat K_matrix =
+      cv::Mat::zeros(3, 3, CV_64FC1); // intrinsic camera parameters
+  K_matrix.at<double>(0, 0) = f_u_;   //      [ fx   0  cx ]
+  K_matrix.at<double>(1, 1) = f_v_;   //      [  0  fy  cy ]
+  K_matrix.at<double>(0, 2) = u_c_;   //      [  0   0   1 ]
+  K_matrix.at<double>(1, 2) = v_c_;
+  K_matrix.at<double>(2, 2) = 1;
+  cv::Mat R_matrix = cv::Mat::zeros(3, 3, CV_64FC1); // rotation matrix
+  cv::Mat t_matrix = cv::Mat::zeros(3, 1, CV_64FC1);
+
   for (const auto &feature : *features) {
     features::CoralFeatureStereoCorrespondenceSPtr stereo_feature =
         boost::dynamic_pointer_cast<features::CoralFeatureStereoCorrespondence>(
             feature);
     stereo_features->push_back(stereo_feature);
+
+    points3d.push_back(cv::Point3d(stereo_feature->GetPoint3d()(0),
+                                   stereo_feature->GetPoint3d()(1),
+                                   stereo_feature->GetPoint3d()(2)));
+
+    points2d.push_back(cv::Point2d(stereo_feature->GetPointUV()(0),
+                                   stereo_feature->GetPointUV()(1)));
+  }
+
+  cv::Mat distCoeffs =
+      cv::Mat::zeros(4, 1, CV_64FC1); // vector of distortion coefficients
+  cv::Mat rvec = cv::Mat::zeros(3, 1, CV_64FC1); // output rotation vector
+  cv::Mat tvec = cv::Mat::zeros(3, 1, CV_64FC1); // output translation vector
+  bool useExtrinsicGuess =
+      false; // if true the function uses the provided rvec and tvec values as
+  // initial approximations of the rotation and translation vectors
+
+  if (num_correspondences_ >= 4 ) {
+    cv::solvePnP(points3d, points2d, K_matrix, distCoeffs, rvec, tvec,
+                 useExtrinsicGuess, cv::SOLVEPNP_EPNP);
+    cv::Rodrigues(rvec, R_matrix); // converts Rotation Vector to Matrix
+    t_matrix = tvec;               // set translation matrix
+
+    R_matrix_ = R_matrix;
+    t_matrix_ = t_matrix;
   }
 
   // Add the correspondences
@@ -92,6 +131,9 @@ Eigen::MatrixXd CoralPNPModel::ModelEquation() {
 
   LOG(INFO) << " R is \n" << R_curr_;
   LOG(INFO) << " T is \n" << t_curr_;
+
+  LOG(INFO) << " R is \n" << R_matrix_;
+  LOG(INFO) << " T is \n" << t_matrix_;
 
   return Eigen::MatrixXd::Zero(4, 4);
 }

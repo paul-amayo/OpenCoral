@@ -12,6 +12,7 @@ CoralFeatureStereoCorrespondence::CoralFeatureStereoCorrespondence(
   min_disparity_ = 0;
   max_disparity_ = 80;
   kernel_size_ = 3;
+  disparity_=0;
 
   point_uv_ = point_uv_1;
   GetStereoDisparity(point_uv_2, image_2_left, image_2_right);
@@ -25,6 +26,8 @@ CoralFeatureStereoCorrespondence::CoralFeatureStereoCorrespondence(
 
   max_disparity_ = 50;
   kernel_size_ = 5;
+  min_disparity_=0;
+
 }
 //------------------------------------------------------------------------------
 float CoralFeatureStereoCorrespondence::Compare(
@@ -79,17 +82,12 @@ void CoralFeatureStereoCorrespondence::GetStereoDisparity(
       if (sad_score < min_sad_score) {
         final_bloc_left = bloc_left;
         final_bloc_right = bloc_right;
-        //        LOG(INFO)<<"SAD score "<<disp<<" is "<<sad_score;
 
         min_sad_score = sad_score;
         disparity_ = disp;
       }
     }
   }
-//
-//  cv::imshow("Bloc left ", final_bloc_left);
-//  cv::imshow("Bloc right ", final_bloc_right);
-//  cv::waitKey(0);
 }
 //------------------------------------------------------------------------------
 Eigen::Vector3d CoralFeatureStereoCorrespondence::GetWorldPoint(
@@ -97,9 +95,9 @@ Eigen::Vector3d CoralFeatureStereoCorrespondence::GetWorldPoint(
     Eigen::Matrix3d K) const {
   Eigen::Vector3d point_world;
   double baseline_over_disparity_1 = baseline / disparity_;
-  point_world(0) = baseline_over_disparity_1 * K(0, 0);
-  point_world(1) = (point_uv_left(0) - K(0, 2)) * baseline_over_disparity_1;
-  point_world(2) = (point_uv_left(1) - K(1, 2)) * baseline_over_disparity_1 *
+  point_world(2) = baseline_over_disparity_1 * K(0, 0);
+  point_world(0) = (point_uv_left(0) - K(0, 2)) * baseline_over_disparity_1;
+  point_world(1) = (point_uv_left(1) - K(1, 2)) * baseline_over_disparity_1 *
                    (K(0, 0) / K(1, 1));
 
   return point_world;

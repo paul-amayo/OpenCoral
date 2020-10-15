@@ -25,11 +25,11 @@ struct PnpModelFixture {
 
   const double baseline = 0.5372;
 
-  const double uc = 240;
-  const double vc = 320;
+  const double uc = 609.5593;
+  const double vc = 172.854;
 
-  const double fu = 800;
-  const double fv = 800;
+  const double fu = 721.5377;
+  const double fv = 721.5377;
 
   cv::Mat image_1_left;
   cv::Mat image_2_left;
@@ -101,7 +101,7 @@ struct PnpModelFixture {
     K = Eigen::MatrixXd::Zero(3, 3);
     K << fu, 0, uc, 0, fv, vc, 0, 0, 1;
 
-    stereo_model = boost::make_shared<coral::models::CoralPNPModel>();
+    stereo_model = boost::make_shared<coral::models::CoralPNPModel>(K);
 
     stereo_features = boost::make_shared<coral::features::FeatureVector>();
 
@@ -158,6 +158,7 @@ BOOST_FIXTURE_TEST_CASE(update_model, PnpModelFixture) {
 
   stereo_model->RelativeError(rot_error, trans_error, R, t, Rot, trans);
 
+  stereo_model->ModelEquation();
   LOG(INFO) << "Rot error is " << rot_error;
   LOG(INFO) << "Trans error is " << trans_error;
 }
@@ -166,6 +167,8 @@ BOOST_FIXTURE_TEST_CASE(model_initialiser, PnpModelFixture) {
   models::ModelInitialiserParams mi_params(10, 0.95);
   models::ModelInitialiser<models::CoralPNPModel> pnp_model_initialiser(
       mi_params);
+
+  pnp_model_initialiser.SetCameraMatrix(K);
 
   int num_models = 1;
   float threshold = 3.0;
@@ -281,6 +284,7 @@ BOOST_FIXTURE_TEST_CASE(image_test, PnpModelFixture) {
   models::ModelInitialiserParams mi_params(100, 0.95);
   models::ModelInitialiser<models::CoralPNPModel> pnp_model_initialiser(
       mi_params);
+  pnp_model_initialiser.SetCameraMatrix(K);
 
   int num_models = 2;
   float threshold = 3.0;

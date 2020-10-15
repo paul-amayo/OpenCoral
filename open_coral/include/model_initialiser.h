@@ -1,4 +1,5 @@
 #include "nanoflann.hpp"
+#include "models/coral_pnp_model.h"
 #include <Eigen/Sparse>
 #include <Eigen/src/Core/Matrix.h>
 #include <Eigen/src/Core/util/Constants.h>
@@ -31,8 +32,12 @@ public:
   void Ransac(features::FeatureVectorSPtr input_features, float threshold,
               ModelSPtr output_model);
 
+  void SetCameraMatrix(Eigen::Matrix3d K){K_=K;}
+
 private:
   ModelInitialiserParams model_init_params_;
+
+  Eigen::Matrix3d K_;
 };
 
 //------------------------------------------------------------------------------
@@ -59,6 +64,30 @@ void ModelInitialiser<InputType>::Initialise(
   while (i < num_models &&
          features_init->size() > new_model_ptr->ModelDegreesOfFreedom()) {
     boost::shared_ptr<InputType> model_ptr(new InputType());
+    Ransac(features_init, threshold, model_ptr);
+    models->push_back(model_ptr);
+    i++;
+  }
+}
+
+//------------------------------------------------------------------------------
+template <>
+void ModelInitialiser<CoralPNPModel>::Initialise(
+    const features::FeatureVectorSPtr input_features, int num_models,
+    float threshold, ModelVectorSPtr models) {
+  // clear the model vector
+  models->clear();
+  LOG(INFO) << "Begin initialising Pnp Model";
+
+  features::FeatureVectorSPtr features_init(new features::FeatureVector);
+  *features_init = *input_features;
+
+  boost::shared_ptr<CoralPNPModel> new_model_ptr(new CoralPNPModel(K_));
+
+  int i = 0;
+  while (i < num_models &&
+         features_init->size() > new_model_ptr->ModelDegreesOfFreedom()) {
+    boost::shared_ptr<CoralPNPModel> model_ptr(new CoralPNPModel(K_));
     Ransac(features_init, threshold, model_ptr);
     models->push_back(model_ptr);
     i++;
@@ -117,7 +146,7 @@ void ModelInitialiser<InputType>::Ransac(
       max_iterations_prob = log(1 - model_init_params_.ransac_prob) /
                             log(1 - pow(current_prob, DOF));
     }
-    num_iterations++;
+      num_iterations++;
   }
   // Select the inliers and use them to update the initial model
   features::FeatureVectorSPtr inlier_features(new features::FeatureVector);
@@ -130,6 +159,7 @@ void ModelInitialiser<InputType>::Ransac(
       outlier_features.push_back((*input_features)[i]);
     }
   }
+  LOG(INFO)<<"Size of input features is "<<inlier_features->size();
   output_model->UpdateModel(inlier_features);
 
   *input_features = outlier_features;
