@@ -112,15 +112,38 @@ int main(int argc, char *argv[]) {
 
     // Open CV SGBM
     int wsize = 7;
-    int max_disp = 50;
-    cv::Ptr<cv::StereoSGBM> sgbm = cv::StereoSGBM::create(0, max_disp, wsize);
-    Ptr<StereoMatcher> right_matcher = cv::ximgproc::createRightMatcher(sgbm);
+    int max_disp = 70;
 
-    cv::Mat disp_1_left, disp_2_left;
-    sgbm->compute(image_1_left_grey, image_1_right_grey, disp_1_left);
-    sgbm->compute(image_2_left_grey, image_2_right_grey, disp_2_left);
+    cv::Mat left_disp,right_disp;
+    Ptr<StereoSGBM> left_matcher  = StereoSGBM::create(0,max_disp,wsize);
+    left_matcher->setP1(24*wsize*wsize);
+    left_matcher->setP2(96*wsize*wsize);
 
-    cv::imshow("Disparity 1 left", DisparityColour(disp_1_left));
+    left_matcher->setPreFilterCap(63);
+    left_matcher->setMode(StereoSGBM::MODE_SGBM_3WAY);
+    Ptr<ximgproc::DisparityWLSFilter> wls_filter = ximgproc::createDisparityWLSFilter
+        (left_matcher);
+    Ptr<StereoMatcher> right_matcher = ximgproc::createRightMatcher(left_matcher);
+
+    left_matcher-> compute(image_1_left_grey,image_1_right_grey,left_disp);
+    right_matcher->compute(image_1_right_grey,image_1_left_grey, right_disp);
+
+
+    wls_filter->setLambda(8000);
+    wls_filter->setSigmaColor(1.5);
+    cv::Mat filtered_disp;
+    wls_filter->filter(left_disp,image_1_left_grey,filtered_disp,right_disp);
+    //cv::Ptr<cv::StereoSGBM> sgbm = cv::StereoSGBM::create(0, max_disp, wsize);
+    //Ptr<StereoMatcher> right_matcher = cv::ximgproc::createRightMatcher(sgbm);
+
+    //cv::Mat disp_1_left, disp_2_left;
+    //sgbm->compute(image_1_left_grey, image_1_right_grey, disp_1_left);
+    //sgbm->compute(image_2_left_grey, image_2_right_grey, disp_2_left);
+
+    cv::imshow("Disparity left", DisparityColour(left_disp));
+    cv::imshow("Disparity right", DisparityColour(right_disp));
+    cv::imshow("Disparity right", DisparityColour(filtered_disp));
+    cv::waitKey(0);
     //    cv::imshow("Disparity 2 left", DisparityColour(disp_2_left));
     //
     //    cv::imshow("Disp difference", cv::abs(DisparityColour(disp_2_left) -
@@ -132,7 +155,7 @@ int main(int argc, char *argv[]) {
 
     cv::Mat flow_deep(image_1_left.size(), CV_32FC2);
     cv::Ptr<cv::DenseOpticalFlow> dense_flow =
-        cv::optflow::createOptFlow_DualTVL1();
+        cv::optflow::createOptFlow_DeepFlow();
 
     dense_flow->calc(image_1_left_grey, image_2_left_grey, flow_deep);
     cv::Mat flow_parts[2];
@@ -140,11 +163,65 @@ int main(int argc, char *argv[]) {
 
     cv::Mat magnitude, angle, magn_norm, flow_u, flow_v;
     cv::cartToPolar(flow_parts[0], flow_parts[1], magnitude, angle, true);
-    flow_parts[0].convertTo(flow_u, CV_32FC1, 1);
-    flow_parts[1].convertTo(flow_u, CV_32FC1, 1);
+    flow_parts[0].convertTo(flow_u, CV_32F, 1);
+    flow_parts[1].convertTo(flow_v, CV_32F, 1);
 
-    cv::imshow("Flow magnitude ", FlowColour(magnitude));
-    cv::waitKey(0);
+//    cv::imshow("Flow magnitude ", FlowColour(flow_u));
+//    cv::waitKey(0);
+
+    // Filter orb keypoints
+    int num_bins = 30;
+    int grid_ratio = 1;
+
+    double grid_size_width = (float)num_bins / (float)image_1_left.cols;
+    double grid_size_height = (float)num_bins / (float)image_1_left.rows;
+
+    int total_num_bins = num_bins * num_bins * grid_ratio;
+    std::vector<bool> bin_occupancy(total_num_bins, false);
+    std::vector<cv::KeyPoint> keypoints_1, keypoints_2;
+
+    int minHessian = 40;
+    cv::Ptr<cv::xfeatures2d::SURF> surf =
+        cv::xfeatures2d::SURF::create(minHessian);
+
+    //    orb->setMaxFeatures(10000);
+    surf->detect(image_1_left_grey, keypoints_1);
+
+    LOG(INFO) << "Obtain the orb keypoints";
+
+    std::vector<cv::KeyPoint> keypoints_out;
+
+    int flow_threshold=1;
+    for (const auto &keypoint : keypoints_1) {
+
+      double u = keypoint.pt.x;
+      double v = keypoint.pt.y;
+
+      int new_u = u + flow_u.at<float>(v, u);
+      int new_v = v + flow_v.at<float>(v, u);
+
+      cv::KeyPoint flow_point(new_u, new_v, 1);
+
+      int col_bin_index = floor(u * grid_ratio * grid_size_width);
+      int row_bin_index = floor(v * grid_size_height);
+
+      int vector_index = row_bin_index * grid_ratio * num_bins + col_bin_index;
+
+      if (vector_index > 0) {
+        // if the bin is empty add a feature and then fill it
+        if (!bin_occupancy[vector_index] && magnitude.at<float>(v,u)>flow_threshold) {
+          keypoints_out.push_back(keypoint);
+          keypoints_2.push_back(flow_point);
+          bin_occupancy[vector_index] = true;
+        }
+      }
+    }
+    keypoints_1=keypoints_out;
+
+
+    LOG(INFO) << "size of keypoints is " << keypoints_1.size();
+    LOG(INFO) << "size of keypoints is " << keypoints_2.size();
+
     cv::Mat static_image = cv::abs(image_1_left_grey - image_2_left_grey) > 10;
 
     const double baseline = 0.24;
@@ -157,54 +234,6 @@ int main(int argc, char *argv[]) {
 
     Eigen::Matrix3d K;
     K << fu, 0, uc, 0, fv, vc, 0, 0, 1;
-    std::vector<cv::KeyPoint> keypoints_1;
-    cv::Mat descriptors_1;
-    std::vector<cv::KeyPoint> keypoints_2;
-    cv::Mat descriptors_2;
-
-    int minHessian = 40;
-    cv::Ptr<cv::xfeatures2d::SURF> surf =
-        cv::xfeatures2d::SURF::create(minHessian);
-
-    //    orb->setMaxFeatures(10000);
-    surf->detect(image_1_left_grey, keypoints_1);
-
-    LOG(INFO) << "Obtain the orb keypoints";
-
-    // Filter orb keypoints
-    int num_bins = 30;
-    int grid_ratio = 1;
-
-    int total_num_bins = num_bins * num_bins * grid_ratio;
-    std::vector<bool> bin_occupancy(total_num_bins, false);
-    std::vector<cv::KeyPoint> keypoints_out;
-    for (const auto &keypoint : keypoints_1) {
-
-      double u = keypoint.pt.x;
-      double v = keypoint.pt.y;
-
-      double grid_size_width = (float)num_bins / (float)image_1_left.cols;
-      double grid_size_height = (float)num_bins / (float)image_1_left.rows;
-
-      int col_bin_index = floor(u * grid_ratio * grid_size_width);
-      int row_bin_index = floor(v * grid_size_height);
-
-      int vector_index = row_bin_index * grid_ratio * num_bins + col_bin_index;
-
-      if (vector_index > 0) {
-        // if the bin is empty add a feature and then fill it
-        if (!bin_occupancy[vector_index]) {
-          keypoints_out.push_back(keypoint);
-          bin_occupancy[vector_index] = true;
-        }
-      }
-    }
-
-    keypoints_1 = keypoints_out;
-    // Get Descriptors
-    surf->compute(image_1_left_grey, keypoints_1, descriptors_1);
-    surf->detect(image_2_left_grey, keypoints_2);
-    surf->compute(image_2_left_grey, keypoints_2, descriptors_2);
 
     cv::Mat image_drawn_1, image_drawn_2;
     cv::drawKeypoints(image_1_left, keypoints_1, image_drawn_1);
@@ -220,20 +249,8 @@ int main(int argc, char *argv[]) {
         cv::Rect(image_1_left.cols, 0, image_1_left.cols, image_1_left.rows));
     image_drawn_2.copyTo(MatROI);
 
-    // Since SURF is a floating-point descriptor NORM_L2 is used
-    cv::Ptr<cv::DescriptorMatcher> matcher =
-        cv::DescriptorMatcher::create(DescriptorMatcher::FLANNBASED);
-    std::vector<std::vector<cv::DMatch>> knn_matches;
-    matcher->knnMatch(descriptors_1, descriptors_2, knn_matches, 2);
-    //-- Filter matches using the Lowe's ratio test
-    const float ratio_thresh = 0.7f;
-    std::vector<cv::DMatch> good_matches;
-    for (auto &knn_match : knn_matches) {
-      // if (knn_match[0].distance < ratio_thresh * knn_match[1].distance) {
-      good_matches.push_back(knn_match[0]);
-      //}
-    }
-    LOG(INFO) << "NUmber good matches is " << good_matches.size();
+    cv::imshow("Image features", image_1_2);
+    cv::waitKey(0);
 
     features::FeatureVectorSPtr image_features =
         boost::make_shared<coral::features::FeatureVector>();
@@ -241,12 +258,12 @@ int main(int argc, char *argv[]) {
     std::vector<cv::KeyPoint> keypoints_2_left;
     std::vector<cv::KeyPoint> keypoints_2_right;
     int match_no = 0;
-    for (auto &good_match : good_matches) {
-      Eigen::Vector2d uv_1_left(keypoints_1[good_match.queryIdx].pt.x,
-                                keypoints_1[good_match.queryIdx].pt.y);
+    for (int keypoint_no = 0; keypoint_no < keypoints_1.size(); ++keypoint_no) {
+      Eigen::Vector2d uv_1_left(keypoints_1[keypoint_no].pt.x,
+                                keypoints_1[keypoint_no].pt.y);
 
-      Eigen::Vector2d uv_2_left(keypoints_2[good_match.trainIdx].pt.x,
-                                keypoints_2[good_match.trainIdx].pt.y);
+      Eigen::Vector2d uv_2_left(keypoints_2[keypoint_no].pt.x,
+                                keypoints_2[keypoint_no].pt.y);
 
       features::CoralFeatureStereoCorrespondenceSPtr new_feature =
           boost::make_shared<coral::features::CoralFeatureStereoCorrespondence>(
@@ -290,7 +307,7 @@ int main(int argc, char *argv[]) {
         mi_params);
     pnp_model_initialiser.SetCameraMatrix(K);
 
-    int num_models = 4;
+    int num_models = 6;
     float threshold = 3.0;
 
     models::ModelVectorSPtr pnp_models(new models::ModelVector);
@@ -352,7 +369,7 @@ int main(int argc, char *argv[]) {
       Eigen::Vector3d t = pnp_model->GetTranslation();
 
       cv::Mat new_image =
-          photo_model->TransformImageMotion(image_1_left, disp_1_left, R, t);
+          photo_model->TransformImageMotion(image_1_left, left_disp, R, t);
 
       // Assign pixelwise cost
       for (int u = 0; u < num_cols; ++u) {
