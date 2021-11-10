@@ -9,3 +9,6 @@ target_link_libraries(coral_gpu_example open_coral coral_cuda)
 add_executable( DMVO coral_direct_mvo.cpp)
 target_link_libraries(DMVO open_coral)
 
+add_executable( Affine coral_affine_example.cpp)
+target_link_libraries(Affine open_coral coral_cuda)
+

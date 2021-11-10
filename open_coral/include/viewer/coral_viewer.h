@@ -11,10 +11,10 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <iostream>
-#include <opencv4/opencv2/features2d.hpp>
-#include <opencv4/opencv2/imgproc.hpp>
-#include <opencv4/opencv2/opencv.hpp>
-#include <opencv4/opencv2/xfeatures2d.hpp>
+#include <opencv2/features2d.hpp>
+#include <opencv2/imgproc.hpp>
+#include <opencv2/opencv.hpp>
+#include <opencv2/xfeatures2d.hpp>
 
 namespace coral {
 namespace viewer {

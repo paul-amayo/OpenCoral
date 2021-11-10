@@ -25,6 +25,7 @@ set(CORAL_UTIL_SRCS
         src/coral_model_line.cpp
         src/coral_feature_point.cpp
         src/coral_photo_model.cpp
+        src/coral_curvature_extractor.cpp
         include/coral.h
         include/model_initialiser.h
         include/viewer/coral_viewer.h
