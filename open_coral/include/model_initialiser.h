@@ -159,10 +159,11 @@ void ModelInitialiser<InputType>::Ransac(
       outlier_features.push_back((*input_features)[i]);
     }
   }
-  LOG(INFO)<<"Size of input features is "<<inlier_features->size();
+  LOG(INFO)<<"Number of inlier features is "<<inlier_features->size();
   output_model->UpdateModel(inlier_features);
 
   *input_features = outlier_features;
+  LOG(INFO)<<"Number of outlier features is "<<input_features->size();
 }
 
 } // namespace models

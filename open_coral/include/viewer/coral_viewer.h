@@ -108,13 +108,15 @@ void CoralViewer<cv::Mat>::VisualiseLabels(
     Eigen::Vector2d uv = feature->GetFeatureValue();
     cv::Point2f curr_point(uv(0), uv(1));
 
+    if (labels(feature_no) < models->size()) {
     cv::circle(image_display, curr_point, 2, colour_map[labels(feature_no)]);
+    }
 
     feature_no++;
   }
 
   cv::imshow("Label visualiser", image_display);
-  cv::waitKey(0);
+  cv::waitKey(15);
 }
 
 } // namespace viewer

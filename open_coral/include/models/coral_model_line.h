@@ -1,3 +1,6 @@
+#ifndef CORAL_MODEL_LINE_H_
+#define CORAL_MODEL_LINE_H_
+
 #include "coral_model.h"
 #include <Eigen/Core>
 #include <Eigen/Dense>
@@ -35,3 +38,4 @@ private:
 };
 } // namespace models
 } // namespace coral
+#endif // CORAL_MODEL_LINE_H_

@@ -21,11 +21,13 @@ include_directories(${Boost_INCLUDE_DIRS})
 set(CMAKE_CXX_STANDARD 14)
 set(CORAL_UTIL_SRCS
         src/coral_feature_stereo_correspondence.cpp
+        src/coral_feature_curvature.cpp
         src/coral_pnp_model.cpp
         src/coral_model_line.cpp
         src/coral_feature_point.cpp
         src/coral_photo_model.cpp
         src/coral_curvature_extractor.cpp
+        src/coral_affine_model.cpp
         include/coral.h
         include/model_initialiser.h
         include/viewer/coral_viewer.h

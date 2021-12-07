@@ -70,6 +70,8 @@ void CoralCudaWrapper<ModelType>::WrapParams(
 
   params_.max_neighbours = params.max_neighbours;
   params_.outlier_threshold = params.outlier_threshold;
+
+  params_.update_models = params.update_models;
 }
 
 //------------------------------------------------------------------------------
@@ -245,7 +247,7 @@ CoralCudaWrapper<ModelType>::EnergyMinimisation(
 
   // Update the params
   params_.num_features = features->size();
-  std::cout << "Number of features is " << params_.num_features << "\n";
+  LOG(INFO) << "Number of features is " << params_.num_features;
   this->UpdateNumFeatures(params_.num_features);
   params_.num_labels = models->size() + 1;
   this->UpdateNumLabels(params_.num_labels);
@@ -262,7 +264,7 @@ CoralCudaWrapper<ModelType>::EnergyMinimisation(
 
   for (int curr_loop = 0; curr_loop < params_.num_loops; ++curr_loop) {
 
-    std::cout << "Number of labels is " << params_.num_labels << "\n";
+    LOG(INFO) << "Number of labels is " << params_.num_labels;
 
     cudaEvent_t start, stop;
     ErrorCheckCuda(cudaEventCreate(&start));
@@ -277,14 +279,22 @@ CoralCudaWrapper<ModelType>::EnergyMinimisation(
     ErrorCheckCuda(cudaEventDestroy(start));
     ErrorCheckCuda(cudaEventDestroy(stop));
 
-    std::cout << " The optimisation time was " << optimisation_time
-              << " miliseconds \n";
+    LOG(INFO) << " The optimisation time was " << optimisation_time
+              << " miliseconds";
     Eigen::MatrixXf primal_eig = Cv2Eigen(primal.GetMatrix().t());
     this->SetPrimal(primal_eig.cast<double>());
     this->LabelsFromPrimal();
+
+    if (params_.update_models) {
+      this->UpdateModels(features, models);
+      Eigen::MatrixXd temp_costs = this->EvaluateModelCost(features, models);
+      Eigen::MatrixXf model_costs = temp_costs.transpose().cast<float>();
+      cv::Mat model_costs_cv = Eigen2Cv(model_costs);
+      cuda_optimiser.UpdateModelCosts(model_costs_cv);
+    }
   }
   coral::optimiser::EnergyMinimisationResult result;
-
+  LOG(INFO) << "Model assignment is " << this->GetPrimal().colwise().sum();
   result.SoftLabel = this->GetPrimal();
   result.DiscreteLabel = this->GetLabel();
   return result;

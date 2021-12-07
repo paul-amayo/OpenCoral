@@ -218,6 +218,11 @@ CudaOptimiser::CudaOptimiser(const cv::Mat &model_costs, cv::Mat nabla,
   model_costs_.SetValue(model_costs);
 }
 //------------------------------------------------------------------------------
+void CudaOptimiser::UpdateModelCosts(cv::Mat model_cost) {
+  model_costs_.SetSize(params_.num_labels, params_.num_features);
+  model_costs_.SetValue(model_cost);
+}
+//------------------------------------------------------------------------------
 cuda::matrix::CudaMatrix<float> CudaOptimiser::Optimise() {
   for (int iter = 0; iter < params_.num_iterations; ++iter) {
     CompactnessDualOptimisation();

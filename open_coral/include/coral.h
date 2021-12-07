@@ -85,11 +85,18 @@ public:
 
   void LabelsFromPrimal();
 
+  void LabelsFromModelCosts();
+
+  void PrimalFromLabels();
+
   Primal GetPrimal() { return primal_; };
 
   Label GetLabel() { return label_; };
 
   void SetPrimal(Primal primal) { primal_ = primal; };
+
+  void UpdateModels(features::FeatureVectorSPtr features,
+                    models::ModelVectorSPtr models);
 
 private:
   void InitialiseVariables();
@@ -103,9 +110,6 @@ private:
   Dual GetClampedDualNorm(Dual dual, double clamp_value);
 
   static void ClampVariable(Primal &primal, double clamp_value);
-
-  void UpdateModels(features::FeatureVectorSPtr features,
-                    models::ModelVectorSPtr models);
 
   void SimplexProjection();
 
@@ -227,6 +231,8 @@ Eigen::MatrixXd CoralOptimiser<InputType>::EvaluateModelCost(
   for (int i = 0; i < coral_optimiser_params_.num_labels - 1; ++i) {
     ModelMatrix.col(i) = (*models)[i]->EvaluateCost(features);
   }
+  //  uint num_inliers = (ModelMatrix.col(0).array() < 3).count();
+  //  LOG(INFO) << "Num inliers is " << num_inliers;
   return ModelMatrix;
 }
 
@@ -457,6 +463,30 @@ void CoralOptimiser<InputType>::LabelsFromPrimal() {
 
 //------------------------------------------------------------------------------
 template <typename InputType>
+void CoralOptimiser<InputType>::LabelsFromModelCosts() {
+  for (int i = 0; i < coral_optimiser_params_.num_features; ++i) {
+    Eigen::MatrixXi::Index index = 0;
+    model_costs_.row(i).minCoeff(&index);
+    label_(i, 0) = index;
+  }
+  PrimalFromLabels();
+}
+//------------------------------------------------------------------------------
+template <typename InputType>
+void CoralOptimiser<InputType>::PrimalFromLabels() {
+  primal_ = Eigen::MatrixXd::Zero(coral_optimiser_params_.num_features,
+                                  coral_optimiser_params_.num_labels);
+  for (int j = 0; j < coral_optimiser_params_.num_labels; ++j) {
+    for (int i = 0; i < coral_optimiser_params_.num_features; ++i) {
+      if (label_(i, 0) == j) {
+        primal_(i, j) = 1;
+      }
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+template <typename InputType>
 void CoralOptimiser<InputType>::UpdateModels(
     features::FeatureVectorSPtr features, models::ModelVectorSPtr models) {
   for (int i = 0; i < coral_optimiser_params_.num_labels - 1; ++i) {
@@ -464,7 +494,7 @@ void CoralOptimiser<InputType>::UpdateModels(
         new features::FeatureVector);
 
     for (int j = 0; j < coral_optimiser_params_.num_features; ++j) {
-      if (label_(j) == 1) {
+      if (label_(j) == i) {
         model_update_features->push_back((*features)[j]);
       }
     }
@@ -515,12 +545,16 @@ EnergyMinimisationResult CoralOptimiser<InputType>::EnergyMinimisation(
   FindNearestNeighbours(features);
   LOG(INFO) << "Nearest neighbours found" << std::endl;
   model_costs_ = EvaluateModelCost(features, models);
+  LOG(INFO) << "Model costs evaluated" << std::endl;
+  // LabelsFromModelCosts();
+  LOG(INFO) << "Initial models computed" << std::endl;
 
   for (int curr_loop = 0; curr_loop < coral_optimiser_params_.num_loops;
        ++curr_loop) {
     for (int iter = 0; iter < coral_optimiser_params_.num_iterations; ++iter) {
       // Update dual and primal
       UpdateSmoothnessDual();
+      // UpdateCompactnessDual();
       UpdatePrimal();
     }
 

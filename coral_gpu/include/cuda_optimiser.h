@@ -58,6 +58,8 @@ public:
 
   cuda::matrix::CudaMatrix<float> Optimise();
 
+  void UpdateModelCosts(cv::Mat model_cost);
+
   size_t BlocksPerSide(size_t side, size_t threads) {
     return ((side + threads - 1) / threads);
   }
