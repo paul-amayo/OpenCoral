@@ -130,7 +130,7 @@ int main(int argc, char *argv[]) {
       zero_pad = "00";
     }
 
-    int delta = 2;
+    int delta = 1;
     LOG(INFO) << directory_left + zero_pad + std::to_string(i) + "_left.png";
     cv::Mat image_1_left;
     cv::resize(cv::imread(directory_left + zero_pad + std::to_string(i) +
@@ -177,7 +177,7 @@ int main(int argc, char *argv[]) {
 
     ModelInitialiser<CoralModelAffine> affine_model_initialiser(mi_params);
 
-    int num_models = 6;
+    int num_models = 1;
     float threshold = 3;
 
     ModelVectorSPtr affine_models(new ModelVector);
@@ -193,15 +193,15 @@ int main(int argc, char *argv[]) {
     coral_params.outlier_threshold = 3;
 
     coral_params.num_labels = affine_models->size() + 1;
-    coral_params.num_iterations = 1000;
+    coral_params.num_iterations = 10;
     coral_params.num_loops = 1;
 
-    coral_params.lambda = 1.5;
+    coral_params.lambda = 10.0;
     coral_params.beta = 0;
     coral_params.nu = 0.125;
-    coral_params.alpha = 0.125;
-    coral_params.tau = 0.125;
-    coral_params.update_models = true;
+    coral_params.alpha = 0.0125;
+    coral_params.tau = 0.0125;
+    coral_params.update_models = false;
 
     cv::Mat neighbour_index, neighbour_transpose;
     cuda::coral_wrapper::CoralCudaWrapper<CoralModelAffine> cuda_optimiser(

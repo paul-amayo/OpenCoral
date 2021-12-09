@@ -516,11 +516,13 @@ EnergyMinimisationResult CoralOptimiser<InputType>::EnergyMinimisation(
   neighbour_index_ = neighbour_index;
 
   for (int iter = 0; iter < coral_optimiser_params_.num_iterations; ++iter) {
+    Eigen::MatrixXd prev_row;
     // Update dual and primal
     UpdateCompactnessDual();
     UpdateSmoothnessDual();
     UpdatePrimal();
   }
+
   LabelsFromPrimal();
   EnergyMinimisationResult result;
   result.SoftLabel = primal_;
@@ -552,6 +554,7 @@ EnergyMinimisationResult CoralOptimiser<InputType>::EnergyMinimisation(
   for (int curr_loop = 0; curr_loop < coral_optimiser_params_.num_loops;
        ++curr_loop) {
     for (int iter = 0; iter < coral_optimiser_params_.num_iterations; ++iter) {
+      LOG(INFO) << "Iteration number " << iter;
       // Update dual and primal
       UpdateSmoothnessDual();
       // UpdateCompactnessDual();

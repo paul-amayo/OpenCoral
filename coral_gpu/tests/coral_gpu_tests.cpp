@@ -15,7 +15,10 @@ struct CoralCudaWrapperFixture {
   coral::optimiser::CoralOptimiserParams params;
   boost::shared_ptr<
       cuda::coral_wrapper::CoralCudaWrapper<coral::models::CoralModelLine>>
-      optimiser;
+      optimiser_cuda;
+  boost::shared_ptr<
+      coral::optimiser::CoralOptimiser<coral::models::CoralModelLine>>
+      optimiser_cpu;
 
   CoralCudaWrapperFixture() {
     params.num_neighbours = 2;
@@ -23,12 +26,15 @@ struct CoralCudaWrapperFixture {
     params.num_features = 3;
     params.tau = 0.125;
     params.alpha = 0.125;
-    params.nu = 0.125;
-    params.lambda = 0;
-    params.beta = 1;
-    params.num_iterations = 1000;
-    optimiser = boost::make_shared<
+    params.nu = 0;
+    params.lambda = 5;
+    params.beta = 0;
+    params.num_iterations = 100;
+    optimiser_cuda = boost::make_shared<
         cuda::coral_wrapper::CoralCudaWrapper<coral::models::CoralModelLine>>(
+        params);
+    optimiser_cpu = boost::make_shared<
+        coral::optimiser::CoralOptimiser<coral::models::CoralModelLine>>(
         params);
   }
 };
@@ -208,5 +214,18 @@ BOOST_FIXTURE_TEST_CASE(EnergyMinimisation, CoralCudaWrapperFixture) {
 
   LOG(INFO) << "feature costs is \n" << feature_costs;
 
-  optimiser->EnergyMinimisation(feature_costs, nabla);
+  coral::optimiser::EnergyMinimisationResult gpu_result =
+      optimiser_cuda->EnergyMinimisation(feature_costs, nabla);
+  coral::optimiser::EnergyMinimisationResult cpu_result =
+      optimiser_cpu->EnergyMinimisation(feature_costs, nabla);
+
+  LOG(INFO) << "GPU primal is \n" << gpu_result.SoftLabel;
+  LOG(INFO) << "CPU primal is \n" << cpu_result.SoftLabel;
+
+  for (int i = 0; i < num_points; ++i) {
+    for (int j = 0; j < 4; ++j) {
+      BOOST_CHECK_CLOSE(gpu_result.SoftLabel(i, j), cpu_result.SoftLabel(i, j),
+                        1);
+    }
+  }
 }

@@ -216,6 +216,7 @@ CoralCudaWrapper<ModelType>::EnergyMinimisation(
   cv::Mat neighbour_index_cv, inverse_neighbour_index;
   WrapNeighbourHood(neighbourhood_index, neighbour_index_cv,
                     inverse_neighbour_index);
+
   cv::Mat model_costs_cv = Eigen2Cv(feature_costs.transpose().cast<float>());
 
   // Initialise CUDA Optimiser
@@ -229,7 +230,6 @@ CoralCudaWrapper<ModelType>::EnergyMinimisation(
   this->SetPrimal(primal_eig.cast<double>());
   this->LabelsFromPrimal();
   LOG(INFO) << "Finish optimisation";
-  LOG(INFO) << "Primal is \n" << this->GetPrimal();
 
   coral::optimiser::EnergyMinimisationResult result;
 

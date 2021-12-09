@@ -10,6 +10,8 @@ include_directories(${Eigen_INCLUDE_DIRS})
 
 find_package(OpenMP REQUIRED)
 
+find_package(Ceres REQUIRED)
+
 find_package(GLog REQUIRED)
 include_directories(${GLog_INCLUDE_DIRS})
 
@@ -36,7 +38,7 @@ set(CORAL_UTIL_SRCS
 
 add_library(open_coral ${CORAL_UTIL_SRCS})
 target_link_libraries(open_coral ${OpenCV_LIBS} Eigen3::Eigen
-        OpenMP::OpenMP_CXX gflags glog::glog)
+        OpenMP::OpenMP_CXX gflags glog::glog Ceres::ceres)
 
 target_include_directories(open_coral
         INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}

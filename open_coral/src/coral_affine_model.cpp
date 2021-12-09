@@ -1,6 +1,7 @@
 #include "../include/models/coral_affine_model.h"
 #include "../include/features/coral_feature_curvature.h"
 #include <opencv2/core/eigen.hpp>
+#include "ceres/ceres.h"
 
 namespace coral {
 namespace models {
